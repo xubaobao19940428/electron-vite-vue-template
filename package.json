@@ -10,7 +10,10 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"vue": "^3.3.4"
+		"@element-plus/icons-vue": "^2.1.0",
+		"element-plus": "^2.3.7",
+		"vue": "^3.3.4",
+		"vue-router": "^4.2.4"
 	},
 	"devDependencies": {
 		"@vitejs/plugin-vue": "^4.2.3",
@@ -31,7 +34,7 @@
 				"url": "http://127.0.0.1"
 			}
 		],
-		"productName": "electron-vite-template",
+		"productName": "electron-vite-vue-template",
 		"appId": "",
 		"directories": {
 			"output": "build"
@@ -57,9 +60,9 @@
 		},
 		"mac": {
 			"icon": "build/icons/icon.icns",
-            "target":[
-                "dmg"
-            ]
+			"target": [
+				"dmg"
+			]
 		},
 		"win": {
 			"icon": "build/icons/icon.ico",
@@ -68,7 +71,7 @@
 					"target": "nsis",
 					"arch": [
 						"x64",
-                        "ia32"
+						"ia32"
 					]
 				}
 			]
