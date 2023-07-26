@@ -37,7 +37,7 @@
 		"productName": "electron-vite-vue-template",
 		"appId": "",
 		"directories": {
-			"output": "build"
+			"output": "output"
 		},
 		"files": [
 			"dist-electron",
