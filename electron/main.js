@@ -1,6 +1,14 @@
-const { app, BrowserWindow } = require('electron')
+/*
+ * @Author: qiancheng 915775317@qq.com
+ * @Date: 2023-07-27 16:12:58
+ * @LastEditors: qiancheng 915775317@qq.com
+ * @LastEditTime: 2023-07-31 17:48:16
+ * @FilePath: /electron-vite-vue-template/electron/main.js
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
+const { app, BrowserWindow, systemPreferences } = require('electron')
 const path = require('path')
-
+import setIpc from './ipcMain.js'
 // The built directory structure
 //
 // ├─┬─┬ dist
@@ -13,33 +21,68 @@ const path = require('path')
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, '../public')
 
-let win
-// 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
+let mainWindow
+
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 
+setIpc.setDefaultIpcMain()
 function createWindow() {
-	win = new BrowserWindow({
+	mainWindow = new BrowserWindow({
+		width: 1280,
+		height: 780,
 		icon: path.join(process.env.PUBLIC, 'vite.svg'),
 		webPreferences: {
+			plugins: true,
+			contextIsolation: false,
+			nodeIntegration: true,
+			webSecurity: false,
+			// 如果是开发模式可以使用devTools
+			devTools: true,
 			//   preload: path.join(__dirname, 'preload.js'),
 		},
 	})
-
-	// Test active push message to Renderer-process.
-	win.webContents.on('did-finish-load', () => {
-		win?.webContents.send('main-process-message', new Date().toLocaleString())
+	mainWindow.webContents.once('dom-ready', () => {
+		if (process.platform === 'darwin') {
+			let getMediaAccessStatus = systemPreferences.getMediaAccessStatus('microphone')
+			if (getMediaAccessStatus !== 'granted') {
+				//请求麦克风、摄像头权限
+				systemPreferences.askForMediaAccess('microphone')
+				systemPreferences.askForMediaAccess('camera')
+			}
+		}
 	})
 
+	// Test active push message to Renderer-process.
+	mainWindow.webContents.on('did-finish-load', () => {
+		mainWindow?.webContents.send('main-process-message', new Date().toLocaleString())
+	})
+	if (process.env.NODE_ENV == 'development') {
+		mainWindow.webContents.openDevTools()
+	}
+
 	if (VITE_DEV_SERVER_URL) {
-		win.loadURL(VITE_DEV_SERVER_URL)
+		mainWindow.loadURL(VITE_DEV_SERVER_URL)
 	} else {
 		// win.loadFile('dist/index.html')
-		win.loadFile(path.join(process.env.DIST, 'index.html'))
+		mainWindow.loadFile(path.join(process.env.DIST, 'index.html'))
 	}
+
+	require('@electron/remote/main').enable(mainWindow.webContents)
 }
 
 app.on('window-all-closed', () => {
-	win = null
+	mainWindow = null
+	app.quit()
 })
 
 app.whenReady().then(createWindow)
+// 解决9.x跨域异常问题
+app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors')
+
+app.commandLine.appendArgument('no-sandbox')
+app.commandLine.appendArgument('disable-setuid-sandbox')
+app.commandLine.appendArgument('disable-web-security')
+app.commandLine.appendArgument('ignore-certificate-errors')
+
+app.commandLine.appendSwitch('disable-site-isolation-trials')
+app.commandLine.appendSwitch('enable-quic')

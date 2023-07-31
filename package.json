@@ -3,14 +3,23 @@
 	"private": true,
 	"version": "0.0.0",
 	"main": "dist-electron/main.js",
+	"author": {
+		"name": "johnqian"
+	},
+	"description": "electron-vite-vue事例项目",
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build && electron-builder",
 		"build:mac": "vite build && electron-builder --mac",
+		"build:win32": "vite build && electron-builder --win  --ia32",
+		"build:win64": "vite build && electron-builder --win  --x64",
 		"preview": "vite preview"
 	},
 	"dependencies": {
+		"@electron/remote": "^2.0.10",
 		"@element-plus/icons-vue": "^2.1.0",
+		"archiver": "^5.3.1",
+		"child_process": "^1.0.2",
 		"element-plus": "^2.3.7",
 		"vue": "^3.3.4",
 		"vue-router": "^4.2.4"
@@ -35,7 +44,7 @@
 			}
 		],
 		"productName": "electron-vite-vue-template",
-		"appId": "",
+		"appId": "org.Sky.electron-vite-vue",
 		"directories": {
 			"output": "output"
 		},
@@ -59,6 +68,12 @@
 			]
 		},
 		"mac": {
+			"entitlements": "entitlements.mac.plist",
+			"hardenedRuntime": true,
+			"extendInfo": {
+				"NSMicrophoneUsageDescription": "请允许本程序访问您的麦克风",
+				"NSCameraUsageDescription": "请允许本程序访问您的摄像头"
+			},
 			"icon": "build/icons/icon.icns",
 			"target": [
 				"dmg"
@@ -80,5 +95,9 @@
 			"target": "deb",
 			"icon": "build/icons"
 		}
-	}
+	},
+	"permissions": [
+		"videoCapture",
+		"audioCapture"
+	]
 }

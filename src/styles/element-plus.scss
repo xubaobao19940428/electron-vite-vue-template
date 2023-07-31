@@ -1,0 +1,22 @@
+.el-submenu__title *{
+    vertical-align: unset;
+   
+}
+.el-submenu__title{
+    padding-left:20px;
+    padding-right:40px;
+    // padding:0 20px;
+    i{
+        font-size: 18px;
+        color: #fff!important;
+     }
+}
+.el-dialog{
+    border-radius: 20px;
+}
+.el-link+.el-link{
+    margin-left: 10px;
+}
+.el-page-header__back{
+    color: var(--el-color-primary);
+}

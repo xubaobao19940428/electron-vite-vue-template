@@ -12,11 +12,18 @@ export default defineConfig({
 				// Main-Process entry file of the Electron App.
 				entry: 'electron/main.js',
 			},
-
+			{
+				entry: 'electron/preload.js',
+				onstart(options) {
+					// Notify the Renderer-Process to reload the page when the Preload-Scripts build is complete,
+					// instead of restarting the entire Electron App.
+					options.reload()
+				},
+			},
 		]),
 		renderer(),
 	],
-    resolve: {
+	resolve: {
 		alias: {
 			'@': path.resolve(__dirname, './src'),
 		},

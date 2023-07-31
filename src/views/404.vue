@@ -32,7 +32,7 @@
           message () {
               return '这个页面不存在......'
           }
-      }
+      },
   }
   </script>
   
