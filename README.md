@@ -1,3 +1,4 @@
+
 # Electron-Vite-Vue-template
 
 ## 打包 Electron-builder 自行配置
@@ -19,3 +20,5 @@ yarn build
 ---
 ## 2023-07-25
     增加路由vue-router
+## 2023-08-01
+    增加了摄像头录制以及屏幕录制的功能，利用ffmpeg给输出视频转码
