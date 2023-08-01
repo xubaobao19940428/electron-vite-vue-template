@@ -2,11 +2,11 @@
  * @Author: qiancheng 915775317@qq.com
  * @Date: 2023-07-27 16:12:58
  * @LastEditors: qiancheng 915775317@qq.com
- * @LastEditTime: 2023-07-31 17:48:16
+ * @LastEditTime: 2023-08-01 18:12:36
  * @FilePath: /electron-vite-vue-template/electron/main.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-const { app, BrowserWindow, systemPreferences } = require('electron')
+const { app, BrowserWindow, systemPreferences, ipcMain } = require('electron')
 const path = require('path')
 import setIpc from './ipcMain.js'
 // The built directory structure
@@ -36,6 +36,7 @@ function createWindow() {
 			contextIsolation: false,
 			nodeIntegration: true,
 			webSecurity: false,
+			enableRemoteModule: true,
 			// 如果是开发模式可以使用devTools
 			devTools: true,
 			//   preload: path.join(__dirname, 'preload.js'),
@@ -67,6 +68,7 @@ function createWindow() {
 		mainWindow.loadFile(path.join(process.env.DIST, 'index.html'))
 	}
 
+    require('@electron/remote/main').initialize()
 	require('@electron/remote/main').enable(mainWindow.webContents)
 }
 
@@ -75,7 +77,14 @@ app.on('window-all-closed', () => {
 	app.quit()
 })
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+	// ipcMain.on('REMOTE_BROWSER_GET_BUILTIN', (event, args) => {
+	// 	// 在这里处理同步消息并返回响应
+	// 	const response = '这是主进程返回的响应'
+	// 	event.returnValue = response
+	// })
+	createWindow()
+})
 // 解决9.x跨域异常问题
 app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors')
 

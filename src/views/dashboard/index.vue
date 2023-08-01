@@ -15,6 +15,7 @@
 
 <script>
 import { ipcRenderer } from 'electron';
+import { desktopCapturer } from '@electron/remote';
 const options = { mimeType: 'video/webm; codecs=h264' }
 //主进程引入
 export default {
@@ -46,9 +47,33 @@ export default {
         // }).catch((error) => {
         //     console.error('Error accessing camera:', error);
         // });
+        await _this.startScreenRecording()
     },
 
     methods: {
+        // 屏幕录制函数
+        async startScreenRecording () {
+            try {
+                const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] });
+                console.log(sources); // 添加这行代码，查看 sources 是否包含您要录制的窗口
+                const source = sources.find((source) => source.name === '案件录制'); // 替换成要录制的窗口的名称
+                if (!source) {
+                    throw new Error('找不到指定名称的窗口');
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: false,
+                    video: {
+                        mandatory: {
+                            chromeMediaSource: 'desktop',
+                            chromeMediaSourceId: source.id,
+                        },
+                    },
+                });
+                this.streamList.push(stream);
+            } catch (error) {
+                console.error('屏幕录制失败: ', error);
+            }
+        },
         /**
          * 得到摄像头列表
          */
@@ -137,7 +162,7 @@ export default {
                                 reader.onloadend = () => {
                                     // _this.videoDeviceList[index].label ||
                                     resolve({
-                                        name:  `camera${index}`,
+                                        name: `camera${index}`,
                                         buffer: reader.result,
                                     });
                                 };

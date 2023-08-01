@@ -1,1 +1,118 @@
-"use strict";const{ipcMain:P,dialog:y,app:g}=require("electron"),s=require("fs"),w=require("path"),I=require("archiver"),{spawn:L}=require("child_process");async function F(i){const a=y.showSaveDialogSync({defaultPath:"recordings.zip",filters:[{name:"ZIP Files",extensions:["zip"]}]});if(a){const m=s.createWriteStream(a),l=I("zip");let r=[];l.pipe(m);for(const b of i){const{name:t,buffer:S}=b,d=w.join(g.getPath("downloads"),`${t}.webm`);s.writeFileSync(d,Buffer.from(S));const p=w.join(g.getPath("downloads"),`${t}.flv`),u=L("ffmpeg",["-i",d,"-c:v","copy","-c:a","aac","-ar",44100,p]);u.on("error",o=>{console.error("Error converting video:",o)}),u.stderr.on("data",o=>{console.error(`ffmpeg stderr: ${o}`)}),u.on("close",async o=>{o===0?(console.log(`Video ${t} converted to FLV successfully.`),l.append(s.createReadStream(p),{name:`${t}.flv`}),r.push({flvFilePath:p,webmFilePath:d}),r.length&&r.length===i.length&&(await l.finalize(),r.map(h=>{s.unlinkSync(h.webmFilePath),s.unlinkSync(h.flvFilePath)}))):console.error(`Video ${t} conversion failed with code: ${o}`)})}}}const D={setDefaultIpcMain(){P.handle("save-data",(i,a)=>{F(a)})}},{app:n,BrowserWindow:E,systemPreferences:f}=require("electron"),c=require("path");process.env.DIST=c.join(__dirname,"../dist");process.env.PUBLIC=n.isPackaged?process.env.DIST:c.join(process.env.DIST,"../public");let e;const v=process.env.VITE_DEV_SERVER_URL;D.setDefaultIpcMain();function q(){e=new E({width:1280,height:780,icon:c.join(process.env.PUBLIC,"vite.svg"),webPreferences:{plugins:!0,contextIsolation:!1,nodeIntegration:!0,webSecurity:!1,devTools:!0}}),e.webContents.once("dom-ready",()=>{process.platform==="darwin"&&f.getMediaAccessStatus("microphone")!=="granted"&&(f.askForMediaAccess("microphone"),f.askForMediaAccess("camera"))}),e.webContents.on("did-finish-load",()=>{e==null||e.webContents.send("main-process-message",new Date().toLocaleString())}),process.env.NODE_ENV=="development"&&e.webContents.openDevTools(),v?e.loadURL(v):e.loadFile(c.join(process.env.DIST,"index.html")),require("@electron/remote/main").enable(e.webContents)}n.on("window-all-closed",()=>{e=null,n.quit()});n.whenReady().then(q);n.commandLine.appendSwitch("disable-features","OutOfBlinkCors");n.commandLine.appendArgument("no-sandbox");n.commandLine.appendArgument("disable-setuid-sandbox");n.commandLine.appendArgument("disable-web-security");n.commandLine.appendArgument("ignore-certificate-errors");n.commandLine.appendSwitch("disable-site-isolation-trials");n.commandLine.appendSwitch("enable-quic");
+"use strict";
+const { ipcMain: ipcMain$1, dialog, app: app$1 } = require("electron");
+const fs = require("fs");
+const path$1 = require("path");
+const archiver = require("archiver");
+const { spawn } = require("child_process");
+async function saveRecording(recordings) {
+  const outputFilePath = dialog.showSaveDialogSync({
+    defaultPath: "recordings.zip",
+    filters: [{ name: "ZIP Files", extensions: ["zip"] }]
+  });
+  if (outputFilePath) {
+    const output = fs.createWriteStream(outputFilePath);
+    const archive = archiver("zip");
+    let newArray = [];
+    archive.pipe(output);
+    for (const recording of recordings) {
+      const { name, buffer } = recording;
+      const webmFilePath = path$1.join(app$1.getPath("downloads"), `${name}.webm`);
+      fs.writeFileSync(webmFilePath, Buffer.from(buffer));
+      const flvFilePath = path$1.join(app$1.getPath("downloads"), `${name}.flv`);
+      const ffmpeg = spawn("ffmpeg", ["-i", webmFilePath, "-c:v", "copy", "-c:a", "aac", "-ar", 44100, flvFilePath]);
+      ffmpeg.on("error", (err) => {
+        console.error("Error converting video:", err);
+      });
+      ffmpeg.stderr.on("data", (data) => {
+        console.error(`ffmpeg stderr: ${data}`);
+      });
+      ffmpeg.on("close", async (code) => {
+        if (code === 0) {
+          console.log(`Video ${name} converted to FLV successfully.`);
+          archive.append(fs.createReadStream(flvFilePath), { name: `${name}.flv` });
+          newArray.push({
+            flvFilePath,
+            webmFilePath
+          });
+          if (newArray.length && newArray.length === recordings.length) {
+            await archive.finalize();
+            newArray.map((item) => {
+              fs.unlinkSync(item.webmFilePath);
+              fs.unlinkSync(item.flvFilePath);
+            });
+          }
+        } else {
+          console.error(`Video ${name} conversion failed with code: ${code}`);
+        }
+      });
+    }
+  }
+}
+const setIpc = {
+  setDefaultIpcMain() {
+    ipcMain$1.handle("save-data", (event, bufferList) => {
+      const recordings = bufferList;
+      saveRecording(recordings);
+    });
+  }
+};
+const { app, BrowserWindow, systemPreferences, ipcMain } = require("electron");
+const path = require("path");
+process.env.DIST = path.join(__dirname, "../dist");
+process.env.PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, "../public");
+let mainWindow;
+const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
+setIpc.setDefaultIpcMain();
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 780,
+    icon: path.join(process.env.PUBLIC, "vite.svg"),
+    webPreferences: {
+      plugins: true,
+      contextIsolation: false,
+      nodeIntegration: true,
+      webSecurity: false,
+      enableRemoteModule: true,
+      // 如果是开发模式可以使用devTools
+      devTools: true
+      //   preload: path.join(__dirname, 'preload.js'),
+    }
+  });
+  mainWindow.webContents.once("dom-ready", () => {
+    if (process.platform === "darwin") {
+      let getMediaAccessStatus = systemPreferences.getMediaAccessStatus("microphone");
+      if (getMediaAccessStatus !== "granted") {
+        systemPreferences.askForMediaAccess("microphone");
+        systemPreferences.askForMediaAccess("camera");
+      }
+    }
+  });
+  mainWindow.webContents.on("did-finish-load", () => {
+    mainWindow == null ? void 0 : mainWindow.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  });
+  if (process.env.NODE_ENV == "development") {
+    mainWindow.webContents.openDevTools();
+  }
+  if (VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(process.env.DIST, "index.html"));
+  }
+  require("@electron/remote/main").initialize();
+  require("@electron/remote/main").enable(mainWindow.webContents);
+}
+app.on("window-all-closed", () => {
+  mainWindow = null;
+  app.quit();
+});
+app.whenReady().then(() => {
+  createWindow();
+});
+app.commandLine.appendSwitch("disable-features", "OutOfBlinkCors");
+app.commandLine.appendArgument("no-sandbox");
+app.commandLine.appendArgument("disable-setuid-sandbox");
+app.commandLine.appendArgument("disable-web-security");
+app.commandLine.appendArgument("ignore-certificate-errors");
+app.commandLine.appendSwitch("disable-site-isolation-trials");
+app.commandLine.appendSwitch("enable-quic");
