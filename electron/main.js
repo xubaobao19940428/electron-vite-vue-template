@@ -2,13 +2,14 @@
  * @Author: qiancheng 915775317@qq.com
  * @Date: 2023-07-27 16:12:58
  * @LastEditors: qiancheng 915775317@qq.com
- * @LastEditTime: 2023-08-01 18:12:36
+ * @LastEditTime: 2023-08-02 11:00:23
  * @FilePath: /electron-vite-vue-template/electron/main.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
-const { app, BrowserWindow, systemPreferences, ipcMain } = require('electron')
+const { app, BrowserWindow, systemPreferences, Menu } = require('electron')
 const path = require('path')
 import setIpc from './ipcMain.js'
+import menuconfig from './menu'
 // The built directory structure
 //
 // ├─┬─┬ dist
@@ -42,6 +43,9 @@ function createWindow() {
 			//   preload: path.join(__dirname, 'preload.js'),
 		},
 	})
+	// 载入菜单
+	const menu = Menu.buildFromTemplate(menuconfig)
+	Menu.setApplicationMenu(menu)
 	mainWindow.webContents.once('dom-ready', () => {
 		if (process.platform === 'darwin') {
 			let getMediaAccessStatus = systemPreferences.getMediaAccessStatus('microphone')
@@ -68,7 +72,7 @@ function createWindow() {
 		mainWindow.loadFile(path.join(process.env.DIST, 'index.html'))
 	}
 
-    require('@electron/remote/main').initialize()
+	require('@electron/remote/main').initialize()
 	require('@electron/remote/main').enable(mainWindow.webContents)
 }
 

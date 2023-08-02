@@ -1,8 +1,12 @@
 <!--  -->
 <template>
     <div class="dashboard">
-        <el-button type="primary" @click="startRecord()" v-if="!start">开始录制</el-button>
-        <el-button type="danger" @click="stopRecord" v-else>停止录制</el-button>
+        <div class="dashboard_header">
+            <el-button type="primary" @click="startRecord()" v-if="!start">开始录制</el-button>
+            <el-button type="danger" @click="stopRecord" v-else>停止录制</el-button>
+            <el-button type="success" v-if="recordEnd" @click="saveVideo">保存视频</el-button>
+        </div>
+
         <div id="dashboard-video">
             <!-- <video autoplay muted id="videoElement"></video> -->
         </div>
@@ -21,6 +25,7 @@ const options = { mimeType: 'video/webm; codecs=h264' }
 export default {
     data () {
         return {
+            recordEnd: false,
             videoDeviceList: [],
             currentDeviceId: '',
             streamList: [],
@@ -47,7 +52,7 @@ export default {
         // }).catch((error) => {
         //     console.error('Error accessing camera:', error);
         // });
-        await _this.startScreenRecording()
+        // await _this.startScreenRecording()
     },
 
     methods: {
@@ -167,13 +172,15 @@ export default {
                                     });
                                 };
                                 reader.readAsArrayBuffer(blob);
+
                             };
                             mediaRecorder.start();
                         });
                     })
                 ).then((chunksArray) => {
-                    console.log(chunksArray)
-                    ipcRenderer.invoke("save-data", chunksArray)
+
+                    _this.chunksArray = chunksArray
+
                 });
 
             } catch (error) {
@@ -189,10 +196,18 @@ export default {
                     mediaRecorder.stop()
                 })
                 this.start = false
+                this.recordEnd = true
             } catch (error) {
 
             }
+        },
+        /**
+         * 视频保存
+         */
+        saveVideo () {
+            ipcRenderer.invoke("save-data", this.chunksArray)
         }
+
     }
 }
 
@@ -203,6 +218,16 @@ export default {
     height: 100%;
     display: flex;
     flex-direction: column;
+    padding: 10px 0;
+    box-sizing: border-box;
+
+    .dashboard_header {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 10px;
+        padding: 0 10px;
+        box-sizing: border-box;
+    }
 
     #dashboard-video {
         flex: 1;

@@ -1,12 +1,12 @@
 {
-	"name": "tz-electron-vite",
+	"name": "electron-vite-vue-template",
 	"private": true,
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"main": "dist-electron/main.js",
 	"author": {
 		"name": "johnqian"
 	},
-	"description": "electron-vite-vue事例项目",
+	"description": "electron-vite-vue示例项目",
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build && electron-builder",
