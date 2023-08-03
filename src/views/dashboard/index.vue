@@ -53,6 +53,10 @@ export default {
         //     console.error('Error accessing camera:', error);
         // });
         // await _this.startScreenRecording()
+        // navigator.mediaDevices.addEventListener('devicechange', async (event) => {
+        //    await this.getCamera();
+        //     // updateCameraList(newCameraList);
+        // });
     },
 
     methods: {
@@ -95,6 +99,9 @@ export default {
         async setVideoAttch (videoDeviceList) {
             let _this = this
             let dashboardVideo = document.getElementById('dashboard-video')
+            // while (dashboardVideo.firstChild) {
+            //     dashboardVideo.removeChild(dashboardVideo.firstChild);
+            // }
             videoDeviceList.map(async item => {
                 let videoBox = document.createElement('div')
                 let videoElement = document.createElement('video')
@@ -220,6 +227,7 @@ export default {
     flex-direction: column;
     padding: 10px 0;
     box-sizing: border-box;
+    overflow: hidden;
 
     .dashboard_header {
         display: flex;
@@ -236,6 +244,7 @@ export default {
         grid-gap: 16px;
         /* 为行和列都增加了16px的间隙。 */
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        box-sizing: border-box;
 
         :deep().video-box {
             background-color: #111111;

@@ -4,7 +4,8 @@
 	"version": "1.0.0",
 	"main": "dist-electron/main.js",
 	"author": {
-		"name": "johnqian"
+		"name": "johnqian",
+        "email": "915775317@qq.com"
 	},
 	"description": "electron-vite-vue示例项目",
 	"scripts": {
@@ -93,7 +94,7 @@
 		},
 		"linux": {
 			"target": "deb",
-			"icon": "build/icons"
+			"icon": "build/icons/icon.png"
 		}
 	},
 	"permissions": [
