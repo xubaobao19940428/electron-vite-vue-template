@@ -5,7 +5,7 @@
 	"main": "dist-electron/main.js",
 	"author": {
 		"name": "johnqian",
-        "email": "915775317@qq.com"
+		"email": "915775317@qq.com"
 	},
 	"description": "electron-vite-vue示例项目",
 	"scripts": {
@@ -13,7 +13,7 @@
 		"build": "vite build && electron-builder",
 		"build:mac": "vite build && electron-builder --mac",
 		"build:win32": "vite build && electron-builder --win  --ia32",
-        "build:deb": "vite build && electron-builder --linux",
+		"build:deb": "vite build && electron-builder --linux",
 		"preview": "vite preview"
 	},
 	"dependencies": {

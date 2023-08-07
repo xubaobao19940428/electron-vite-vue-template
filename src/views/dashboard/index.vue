@@ -4,11 +4,51 @@
         <div class="dashboard_header">
             <el-button type="primary" @click="startRecord()" v-if="!start">开始录制</el-button>
             <el-button type="danger" @click="stopRecord" v-else>停止录制</el-button>
-            <el-button type="success" v-if="recordEnd" @click="saveVideo">保存视频</el-button>
+            <!-- <el-button type="success" v-if="recordEnd" @click="saveVideo">保存视频</el-button> -->
+        </div>
+        <div class="file-content">
+            <!-- <el-row>
+                <el-col :span="8" v-for="(videoFile, index) in videoFiles">
+                    <el-card :body-style="{ padding: '0px' }">
+                        <video :src="videoFile.path" controls></video>
+                        <div style="padding: 14px;">
+                            <span>好吃的汉堡</span>
+                            <div class="bottom">
+                                <time class="time">{{ currentDate }}</time>
+                                <el-button type="text" class="button">操作按钮</el-button>
+                            </div>
+                        </div>
+                    </el-card>
+                </el-col>
+            </el-row> -->
+            <el-table :data="videoFiles" style="width: 100%;height:100%" :header-cell-style="{
+                height: '44px',
+                color: '#2C3034',
+                'font-size': '14px',
+                'font-weight': '500',
+                background: '#f5f7fa'
+            }
+                ">
+                <el-table-column prop="name" label="视频名称" align="center"> </el-table-column>
+                <el-table-column prop="format" label="格式" align="center"> </el-table-column>
+                <el-table-column prop="path" label="目录" align="center"> </el-table-column>
+
+                <el-table-column label="操作" align="center" width="200">
+                    <template #default="scope">
+                        <el-button size="small" type="primary" @click="viewVideo(scope.row)">查看</el-button>
+                    </template>
+                </el-table-column>
+                <template #empty>
+                    <div class="empty-box">
+                        <img src="@/assets/pic_taost_03.png" alt="" class="img" />
+                        <div class="text">暂无视频数据～</div>
+                    </div>
+                </template>
+            </el-table>
         </div>
 
         <div id="dashboard-video">
-            <!-- <video autoplay muted id="videoElement"></video> -->
+
         </div>
         <!-- <el-select v-model="currentDeviceId" placeholder="请选择" @change="changeCamera">
             <el-option v-for="item in videoDeviceList" :key="item.deviceId" :label="item.label" :value="item.deviceId">
@@ -19,7 +59,8 @@
 
 <script>
 import { ipcRenderer } from 'electron';
-import { desktopCapturer } from '@electron/remote';
+const path = require('path')
+import { desktopCapturer, app } from '@electron/remote';
 const options = { mimeType: 'video/webm; codecs=h264' }
 //主进程引入
 export default {
@@ -32,7 +73,10 @@ export default {
             videoElement: null,
             start: false,
             mediaRecorderList: [],
-            chunksArray: []
+            chunksArray: [],
+            tableData: [],
+            folderList: [],
+            videoFiles: []
         };
     },
 
@@ -57,9 +101,71 @@ export default {
         //    await this.getCamera();
         //     // updateCameraList(newCameraList);
         // });
+        _this.fetchFileList()
     },
 
     methods: {
+        async fetchFileList () {
+            try {
+                const folderList = await ipcRenderer.invoke('get-file-list');
+                this.folderList = folderList
+                await this.fetchVideoFiles();
+                console.log(this.videoFiles)
+            } catch (error) {
+                console.error('Error fetching file list:', error);
+            }
+        },
+        async fetchVideoFiles () {
+            try {
+                for (const folder of this.folderList) {
+                    const videoFiles = await ipcRenderer.invoke('get-video-files', folder);
+                    const filteredVideoFiles = videoFiles.filter(file => !file.startsWith('.DS_Store'));
+
+                    const videoFileList = [];
+                    for (const file of filteredVideoFiles) {
+                        const filePath = path.join(app.getPath('downloads'), 'videos', folder, file);
+                        const fileInfo = await this.fetchVideoFileInfo(filePath);
+                        videoFileList.push({
+                            name: file,
+                            path: filePath,
+                            ...fileInfo
+                        });
+                    }
+                    this.videoFiles = [...videoFileList, ...this.videoFiles]
+                    console.log('', this.videoFiles)
+                    // this.$set(this.videoFiles, folder, videoFileList);
+                }
+            } catch (error) {
+                console.error('Error fetching video files:', error);
+            }
+        },
+        async fetchVideoFileInfo (filePath) {
+            try {
+                const fileInfo = await ipcRenderer.invoke('get-video-file-info', filePath);
+                return fileInfo;
+            } catch (error) {
+                console.error('Error fetching video file info:', error);
+                throw error;
+            }
+        },
+        /**
+         * 查看视频
+         * @param {*} data 
+         */
+        viewVideo (data) {
+            let newData = JSON.parse(JSON.stringify(data))
+            ipcRenderer.invoke('open-window', newData)
+        },
+        timestampToTime (timestamp) {
+            var date = new Date(timestamp)
+            var Y = date.getFullYear() + '-'
+            var M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '-'
+            var D = (date.getDate() + 1 <= 10 ? '0' + date.getDate() : date.getDate()) + ''
+            var h = (date.getHours() + 1 <= 10 ? '0' + date.getHours() : date.getHours()) + ':'
+            var m = (date.getMinutes() + 1 <= 10 ? '0' + date.getMinutes() : date.getMinutes()) + ':'
+            var s = date.getSeconds() + 1 <= 10 ? '0' + date.getSeconds() : date.getSeconds()
+            return Y + M + D + h + m + s
+        },
         // 屏幕录制函数
         async startScreenRecording () {
             try {
@@ -99,9 +205,7 @@ export default {
         async setVideoAttch (videoDeviceList) {
             let _this = this
             let dashboardVideo = document.getElementById('dashboard-video')
-            // while (dashboardVideo.firstChild) {
-            //     dashboardVideo.removeChild(dashboardVideo.firstChild);
-            // }
+
             videoDeviceList.map(async item => {
                 let videoBox = document.createElement('div')
                 let videoElement = document.createElement('video')
@@ -123,98 +227,100 @@ export default {
                 dashboardVideo.append(videoBox)
             })
         },
-        // async changeCamera (data) {
-        //     await this.startCamera(data)
-
-        // },
-        // async startCamera (deviceId) {
-        //     let _this = this
-
-        //     try {
-        //         const constraints = {
-        //             audio: true,
-        //             video: {
-        //                 deviceId: { exact: deviceId },
-        //             },
-        //         };
-        //         const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        //         _this.videoElement.srcObject = stream;
-        //         _this.stream = stream
-
-        //     } catch (error) {
-        //         console.error('Error accessing camera:', error);
-        //     }
-        // },
         /**
          * 开始录制
          */
         async startRecord () {
-            let _this = this
+            let _this = this;
             try {
-                _this.start = true
-                _this.mediaRecorderList = _this.streamList.map(stream => { return new MediaRecorder(stream, options) })
-                Promise.all(
-                    _this.mediaRecorderList.map((mediaRecorder, index) => {
-                        return new Promise((resolve) => {
-                            let startTime = null;
-                            const chunks = [];
+                _this.start = true;
+                // console.log(_this.streamList)
+                _this.mediaRecorderList = _this.streamList.map((stream, index) => {
+                    let newIndex = index
+                    let newTime = _this.timestampToTime(new Date().getTime())
+                    const mediaRecorder = new MediaRecorder(stream, options);
+                    let recordedChunks = [];
 
-                            mediaRecorder.ondataavailable = (event) => {
-                                if (event.data.size > 0) {
-                                    chunks.push(event.data);
-                                }
-                            };
-                            mediaRecorder.onstart = () => {
-                                startTime = Date.now(); // 记录录制开始时间
-                            };
-                            mediaRecorder.onstop = () => {
-                                const blob = new Blob(chunks, { type: "video/webm" });
-                                //视频流读取传给ipcMain
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                    // _this.videoDeviceList[index].label ||
-                                    resolve({
-                                        name: `camera${index}`,
-                                        buffer: reader.result,
-                                    });
-                                };
-                                reader.readAsArrayBuffer(blob);
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                            _this.saveVideoChunks(recordedChunks, newIndex, newTime);
 
-                            };
-                            mediaRecorder.start();
-                        });
-                    })
-                ).then((chunksArray) => {
+                        }
+                    };
+                    mediaRecorder.onstop = () => {
+                        if (recordedChunks.length > 0) {
+                            console.log('newIndex', newIndex)
+                            _this.saveVideoChunks(recordedChunks, newIndex, newTime);
+                        }
+                    };
 
-                    _this.chunksArray = chunksArray
-
+                    mediaRecorder.start(5000);
+                    return mediaRecorder;
                 });
-
             } catch (error) {
-                console.log(error)
+                console.log(error);
+            }
+        },
+
+        getTotalSize (chunks) {
+            return chunks.reduce((totalSize, chunk) => totalSize + chunk.size, 0);
+        },
+
+        async saveVideoChunks (chunks, index, name) {
+            try {
+                const blob = new Blob(chunks, { type: "video/webm" });
+                const buffer = await blob.arrayBuffer();
+                ipcRenderer.invoke("save-data-flv", { name: name + '_' + index, buffer, parentDirName: name });
+            } catch (error) {
+                console.error("Error saving video chunks:", error);
             }
         },
         /**
-         * 停止录制
+         * 停止录制 在 stopRecord 函数中等待所有录制源结束后再进行保存和转码操作
          */
-        stopRecord () {
+        // 
+        async stopRecord () {
             try {
-                this.mediaRecorderList.map(mediaRecorder => {
-                    mediaRecorder.stop()
-                })
-                this.start = false
-                this.recordEnd = true
-            } catch (error) {
+                const promises = this.mediaRecorderList.map(mediaRecorder => {
+                    return new Promise(resolve => {
+                        mediaRecorder.onstop = () => {
+                            console.log(mediaRecorder)
+                            resolve();
+                        };
+                        mediaRecorder.stop();
+                    });
+                });
 
+                await Promise.all(promises);
+                this.start = false;
+                this.recordEnd = true;
+            } catch (error) {
+                console.error(error);
             }
         },
         /**
          * 视频保存
          */
         saveVideo () {
-            ipcRenderer.invoke("save-data", this.chunksArray)
+            // ipcRenderer.invoke("save-data", this.chunksArray)
+        },
+        /**
+         * 停止
+         * @param {*} stream 
+         */
+        stopMediaStream (stream) {
+            const tracks = stream.getTracks();
+            for (const track of tracks) {
+                track.stop();
+            }
         }
 
+    },
+    beforeUnmount () {
+        this.streamList.map(stream => {
+            this.stopMediaStream(stream)
+        })
     }
 }
 
@@ -231,10 +337,13 @@ export default {
 
     .dashboard_header {
         display: flex;
-        justify-content: center;
         margin-bottom: 10px;
         padding: 0 10px;
         box-sizing: border-box;
+    }
+
+    .file-content {
+        flex: 1;
     }
 
     #dashboard-video {
@@ -254,6 +363,29 @@ export default {
                 height: 100%;
                 object-fit: contain;
             }
+        }
+    }
+
+    .empty-box {
+
+        padding: 160px 0 0 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        .img {
+            display: inline-block;
+            width: 160px;
+            max-width: 100%;
+            margin-bottom: 20px;
+        }
+
+        .text {
+            font-size: 12px;
+            font-weight: 400;
+            color: #000000;
+            line-height: 12px;
         }
     }
 }
