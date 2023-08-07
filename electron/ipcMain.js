@@ -2,7 +2,7 @@
  * @Author: qiancheng 915775317@qq.com
  * @Date: 2023-07-27 16:15:21
  * @LastEditors: qiancheng 915775317@qq.com
- * @LastEditTime: 2023-08-07 14:01:34
+ * @LastEditTime: 2023-08-07 14:55:23
  * @FilePath: /electron-vite-vue-template/electron/ipcMain.js
  * @Description: 这里是所有的ipcMain注册事件
  *  */
@@ -135,7 +135,7 @@ export default {
 			try {
 				console.log('正在保存视频')
 				const outputDir = path.join(app.getPath('downloads'), 'videos', `${parentDirName}`)
-				const tempWebMPath = path.join(outputDir, `${name}.webm`)
+				const tempWebMPath = path.join(outputDir, `${name}.mp4`)
 				const outputVideoPath = path.join(outputDir, `${name}.flv`) // 使用视频保存路径
 				try {
 					await fs.promises.access(outputDir)
@@ -147,9 +147,9 @@ export default {
 				await fs.promises.writeFile(tempWebMPath, Buffer.from(buffer))
 
 				console.log('WebM 文件已保存，路径：', tempWebMPath) // 添加此行来确认临时文件的路径
-                // 'libx264'将视频编码格式保存为h264不然会导致视频只有音频没有视频
+				// 'libx264'将视频编码格式保存为h264不然会导致视频只有音频没有视频
 				// 使用FFmpeg进行格式转换
-				const ffmpegProcess = spawn('ffmpeg', ['-y', '-i', tempWebMPath, '-c:v','libx264','-c:a', 'aac', '-ar', 44100,'-r', '30','-strict', 'experimental', outputVideoPath])
+				const ffmpegProcess = spawn('ffmpeg', ['-y', '-i', tempWebMPath, '-c:v', 'libx264', '-c:a', 'aac', '-ar', 44100, '-r', '30', '-strict', 'experimental', outputVideoPath])
 				ffmpegProcess.on('error', (err) => {
 					console.error('Error converting video:', err)
 				})
@@ -221,37 +221,27 @@ export default {
 
 				// 使用FFmpeg获取FLV文件信息
 				const durationProcess = spawn('ffprobe', ['-i', filePath, '-show_entries', 'format=duration', '-v', 'error', '-of', 'csv=p=0'], { stdio: 'pipe' })
-				const startTimeProcess = spawn('ffprobe', ['-i', filePath, '-show_entries', 'format_tags=creation_time', '-v', 'error', '-of', 'csv=p=0'], { stdio: 'pipe' })
 
 				let duration = null
 				let startTime = null
 
 				durationProcess.stdout.on('data', (data) => {
-                    
 					duration = parseFloat(data.toString().trim())
-				})
-
-				startTimeProcess.stdout.on('data', (data) => {
-                   
-					startTime = new Date(data.toString().trim()).getTime() / 1000
+					console.log(duration)
 				})
 
 				return new Promise((resolve, reject) => {
 					durationProcess.on('close', (durationCode) => {
-						startTimeProcess.on('close', (startTimeCode) => {
-							if (durationCode === 0 && startTimeCode === 0 && duration !== null && startTime !== null) {
-								const endTime = startTime + duration
-								const fileInfo = {
-									duration: duration, // 时长（秒）
-									startTime: startTime, // 开始时间（秒）
-									endTime: endTime, // 结束时间（秒）
-								}
-								resolve(fileInfo)
-							} else {
-								console.error('FFmpeg获取FLV文件信息出错', durationCode, startTimeCode)
-								reject(new Error('FFmpeg获取FLV文件信息出错'))
+						if (durationCode == 0) {
+							const fileInfo = {
+								duration: duration, // 时长（秒）
 							}
-						})
+							console.log(fileInfo)
+							resolve(fileInfo)
+						} else {
+							console.error('Error getting video file info:', error)
+							reject(error)
+						}
 					})
 				})
 			} catch (error) {

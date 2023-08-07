@@ -35,11 +35,11 @@ const setIpc = {
       try {
         console.log("正在保存视频");
         const outputDir = path$1.join(app$1.getPath("downloads"), "videos", `${parentDirName}`);
-        const tempWebMPath = path$1.join(outputDir, `${name}.webm`);
+        const tempWebMPath = path$1.join(outputDir, `${name}.mp4`);
         const outputVideoPath = path$1.join(outputDir, `${name}.flv`);
         try {
           await fs.promises.access(outputDir);
-        } catch (error) {
+        } catch (error2) {
           await fs.promises.mkdir(outputDir, { recursive: true });
         }
         await fs.promises.writeFile(tempWebMPath, Buffer.from(buffer));
@@ -65,8 +65,8 @@ const setIpc = {
             }
           });
         });
-      } catch (error) {
-        console.error("Error saving video:", error);
+      } catch (error2) {
+        console.error("Error saving video:", error2);
       }
     });
     ipcMain.handle("get-file-list", async (event) => {
@@ -75,9 +75,9 @@ const setIpc = {
         const files = await fs.promises.readdir(videosDir);
         const filesList = files.filter((file) => !file.startsWith(".DS_Store"));
         return filesList;
-      } catch (error) {
-        console.error("Error getting file list:", error);
-        throw error;
+      } catch (error2) {
+        console.error("Error getting file list:", error2);
+        throw error2;
       }
     });
     ipcMain.handle("get-video-files", async (event, folder) => {
@@ -85,47 +85,38 @@ const setIpc = {
         const folderPath = path$1.join(app$1.getPath("downloads"), "videos", folder);
         const files = await fs.promises.readdir(folderPath);
         return files;
-      } catch (error) {
-        console.error("Error getting video files:", error);
-        throw error;
+      } catch (error2) {
+        console.error("Error getting video files:", error2);
+        throw error2;
       }
     });
     ipcMain.handle("get-video-file-info", async (event, filePath) => {
       try {
         const durationProcess = spawn("ffprobe", ["-i", filePath, "-show_entries", "format=duration", "-v", "error", "-of", "csv=p=0"], { stdio: "pipe" });
-        const startTimeProcess = spawn("ffprobe", ["-i", filePath, "-show_entries", "format_tags=creation_time", "-v", "error", "-of", "csv=p=0"], { stdio: "pipe" });
         let duration = null;
         let startTime = null;
         durationProcess.stdout.on("data", (data) => {
           duration = parseFloat(data.toString().trim());
-        });
-        startTimeProcess.stdout.on("data", (data) => {
-          startTime = new Date(data.toString().trim()).getTime() / 1e3;
+          console.log(duration);
         });
         return new Promise((resolve, reject) => {
           durationProcess.on("close", (durationCode) => {
-            startTimeProcess.on("close", (startTimeCode) => {
-              if (durationCode === 0 && startTimeCode === 0 && duration !== null && startTime !== null) {
-                const endTime = startTime + duration;
-                const fileInfo = {
-                  duration,
-                  // 时长（秒）
-                  startTime,
-                  // 开始时间（秒）
-                  endTime
-                  // 结束时间（秒）
-                };
-                resolve(fileInfo);
-              } else {
-                console.error("FFmpeg获取FLV文件信息出错", durationCode, startTimeCode);
-                reject(new Error("FFmpeg获取FLV文件信息出错"));
-              }
-            });
+            if (durationCode == 0) {
+              const fileInfo = {
+                duration
+                // 时长（秒）
+              };
+              console.log(fileInfo);
+              resolve(fileInfo);
+            } else {
+              console.error("Error getting video file info:", error);
+              reject(error);
+            }
           });
         });
-      } catch (error) {
-        console.error("Error getting video file info:", error);
-        throw error;
+      } catch (error2) {
+        console.error("Error getting video file info:", error2);
+        throw error2;
       }
     });
     ipcMain.handle("open-window", (event, args) => {
@@ -165,8 +156,8 @@ const setIpc = {
             });
           }
         }
-      } catch (error) {
-        console.error("Error uploading file:", error);
+      } catch (error2) {
+        console.error("Error uploading file:", error2);
       }
     });
   }

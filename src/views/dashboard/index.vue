@@ -110,7 +110,6 @@ export default {
                 const folderList = await ipcRenderer.invoke('get-file-list');
                 this.folderList = folderList
                 await this.fetchVideoFiles();
-                console.log(this.videoFiles)
             } catch (error) {
                 console.error('Error fetching file list:', error);
             }
@@ -125,6 +124,7 @@ export default {
                     for (const file of filteredVideoFiles) {
                         const filePath = path.join(app.getPath('downloads'), 'videos', folder, file);
                         const fileInfo = await this.fetchVideoFileInfo(filePath);
+                        console.log(fileInfo)
                         videoFileList.push({
                             name: file,
                             path: filePath,
@@ -132,8 +132,6 @@ export default {
                         });
                     }
                     this.videoFiles = [...videoFileList, ...this.videoFiles]
-                    console.log('', this.videoFiles)
-                    // this.$set(this.videoFiles, folder, videoFileList);
                 }
             } catch (error) {
                 console.error('Error fetching video files:', error);
