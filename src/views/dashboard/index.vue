@@ -30,9 +30,24 @@
             }
                 ">
                 <el-table-column prop="name" label="视频名称" align="center"> </el-table-column>
-                <el-table-column prop="format" label="格式" align="center"> </el-table-column>
+                <el-table-column prop="format_name" label="格式" align="center"> </el-table-column>
                 <el-table-column prop="path" label="目录" align="center"> </el-table-column>
+                <el-table-column label="开始时间" align="center">
+                    <template #default="scope">
+                        <span>{{ toDefaultTime(scope.row, '1') }}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="结束时间" align="center">
+                    <template #default="scope">
+                        <span>{{ toDefaultTime(scope.row, '2') }}</span>
+                    </template>
+                </el-table-column>
+                <el-table-column label="时长" align="center">
+                    <template #default="scope">
+                        <span>{{ secondsToFormatTime(scope.row.duration) }}</span>
+                    </template>
 
+                </el-table-column>
                 <el-table-column label="操作" align="center" width="200">
                     <template #default="scope">
                         <el-button size="small" type="primary" @click="viewVideo(scope.row)">查看</el-button>
@@ -60,6 +75,7 @@
 <script>
 import { ipcRenderer } from 'electron';
 const path = require('path')
+import ysFixWebmDuration from 'fix-webm-duration'
 import { desktopCapturer, app } from '@electron/remote';
 const options = { mimeType: 'video/webm; codecs=h264' }
 //主进程引入
@@ -105,6 +121,33 @@ export default {
     },
 
     methods: {
+        /**
+         * 返回开始时间，结束时间
+         * @param {*} data 
+         * @param {*} type 
+         */
+        toDefaultTime (data, type) {
+            let str = ''
+            if (data.name) {
+                if (type == 1) {
+                    str = data.name.substring(0, 10) + ' ' + data.name.substring(10, 18)
+
+                } else {
+                    str = this.timestampToTime(new Date(data.name.substring(0, 10) + ' ' + data.name.substring(10, 18)).getTime() + Math.ceil(data.duration) * 1000,1)
+                }
+            }
+            return str
+            //返回开始时间
+
+        },
+        secondsToFormatTime (seconds) {
+            var forData = Math.ceil(seconds)
+            var hour, minute, second
+            hour = parseInt(forData / 3600) // 转换小时
+            minute = parseInt((forData - hour * 3600) / 60) // 转换分
+            second = forData % 60 // 转换秒
+            return `${hour}:${minute}:${second}`
+        },
         async fetchFileList () {
             try {
                 const folderList = await ipcRenderer.invoke('get-file-list');
@@ -154,11 +197,16 @@ export default {
             let newData = JSON.parse(JSON.stringify(data))
             ipcRenderer.invoke('open-window', newData)
         },
-        timestampToTime (timestamp) {
+        /**
+         * 格式化时间
+         * @param {*} timestamp 
+         * @param {*} type 用来区分是保存文件时还是读取文件时，保存文件不能有空格
+         */
+        timestampToTime (timestamp, type) {
             var date = new Date(timestamp)
             var Y = date.getFullYear() + '-'
             var M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '-'
-            var D = (date.getDate() + 1 <= 10 ? '0' + date.getDate() : date.getDate()) + ''
+            var D = (date.getDate() + 1 <= 10 ? '0' + date.getDate() : date.getDate()) + (type ? ' ' : '')
             var h = (date.getHours() + 1 <= 10 ? '0' + date.getHours() : date.getHours()) + ':'
             var m = (date.getMinutes() + 1 <= 10 ? '0' + date.getMinutes() : date.getMinutes()) + ':'
             var s = date.getSeconds() + 1 <= 10 ? '0' + date.getSeconds() : date.getSeconds()
@@ -234,27 +282,35 @@ export default {
                 _this.start = true;
                 // console.log(_this.streamList)
                 _this.mediaRecorderList = _this.streamList.map((stream, index) => {
+                    let startTime
                     let newIndex = index
+
                     let newTime = _this.timestampToTime(new Date().getTime())
                     const mediaRecorder = new MediaRecorder(stream, options);
                     let recordedChunks = [];
 
                     mediaRecorder.ondataavailable = (event) => {
+
                         if (event.data.size > 0) {
+                            var duration = Date.now() - startTime;
                             recordedChunks.push(event.data);
-                            _this.saveVideoChunks(recordedChunks, newIndex, newTime);
+
+                            _this.saveVideoChunks(recordedChunks, newIndex, newTime, duration);
 
                         }
                     };
                     mediaRecorder.onstop = () => {
+                        var duration = Date.now() - startTime;
                         if (recordedChunks.length > 0) {
                             console.log('newIndex', newIndex)
-                            _this.saveVideoChunks(recordedChunks, newIndex, newTime);
+                            _this.saveVideoChunks(recordedChunks, newIndex, newTime, duration);
                         }
                     };
 
                     mediaRecorder.start(5000);
+                    startTime = Date.now()
                     return mediaRecorder;
+
                 });
             } catch (error) {
                 console.log(error);
@@ -265,11 +321,17 @@ export default {
             return chunks.reduce((totalSize, chunk) => totalSize + chunk.size, 0);
         },
 
-        async saveVideoChunks (chunks, index, name) {
+        async saveVideoChunks (chunks, index, name, duration) {
+            console.log(duration)
             try {
-                const blob = new Blob(chunks, { type: "video/webm" });
-                const buffer = await blob.arrayBuffer();
-                ipcRenderer.invoke("save-data-flv", { name: name + '_' + index, buffer, parentDirName: name });
+                const blob = new Blob(chunks, { type: "video/webm" })
+                ysFixWebmDuration(blob, duration, async function (fixedBlob) {
+                    // displayResult(fixedBlob);
+                    const buffer = await fixedBlob.arrayBuffer();
+                    ipcRenderer.invoke("save-data-flv", { name: name + '_' + index, buffer, parentDirName: name });
+                });
+
+
             } catch (error) {
                 console.error("Error saving video chunks:", error);
             }
@@ -342,6 +404,7 @@ export default {
 
     .file-content {
         flex: 1;
+        overflow: hidden;
     }
 
     #dashboard-video {
@@ -352,6 +415,7 @@ export default {
         /* 为行和列都增加了16px的间隙。 */
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         box-sizing: border-box;
+
 
         :deep().video-box {
             background-color: #111111;

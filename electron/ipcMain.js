@@ -2,7 +2,7 @@
  * @Author: qiancheng 915775317@qq.com
  * @Date: 2023-07-27 16:15:21
  * @LastEditors: qiancheng 915775317@qq.com
- * @LastEditTime: 2023-08-07 14:55:23
+ * @LastEditTime: 2023-08-08 17:54:13
  * @FilePath: /electron-vite-vue-template/electron/ipcMain.js
  * @Description: 这里是所有的ipcMain注册事件
  *  */
@@ -11,7 +11,10 @@ const fs = require('fs')
 const path = require('path')
 const archiver = require('archiver')
 const { spawn } = require('child_process')
-
+const fluentFfmpeg = require('fluent-ffmpeg')
+// 定义一个数组来存储正在录制的摄像头
+// const recordingProcesses = []
+const recordingProcesses = {}
 async function saveRecording(recordings) {
 	return new Promise((resolve, reject) => {
 		const outputFilePath = dialog.showSaveDialogSync({
@@ -133,7 +136,6 @@ export default {
 		 */
 		ipcMain.handle('save-data-flv', async (event, { name, buffer, parentDirName }) => {
 			try {
-				console.log('正在保存视频')
 				const outputDir = path.join(app.getPath('downloads'), 'videos', `${parentDirName}`)
 				const tempWebMPath = path.join(outputDir, `${name}.mp4`)
 				const outputVideoPath = path.join(outputDir, `${name}.flv`) // 使用视频保存路径
@@ -208,40 +210,19 @@ export default {
 		 */
 		ipcMain.handle('get-video-file-info', async (event, filePath) => {
 			try {
-				// const stats = await fs.promises.stat(filePath)
-
-				// const fileInfo = {
-				// 	size: stats.size,
-				// 	created: stats.birthtime,
-				// 	format: path.extname(filePath).toLowerCase(),
-				// }
-				// return fileInfo
 				// 使用FFmpeg获取FLV文件信息
-				// 使用FFmpeg分别获取FLV文件的时长和开始时间
-
-				// 使用FFmpeg获取FLV文件信息
-				const durationProcess = spawn('ffprobe', ['-i', filePath, '-show_entries', 'format=duration', '-v', 'error', '-of', 'csv=p=0'], { stdio: 'pipe' })
-
-				let duration = null
-				let startTime = null
-
-				durationProcess.stdout.on('data', (data) => {
-					duration = parseFloat(data.toString().trim())
-					console.log(duration)
-				})
-
 				return new Promise((resolve, reject) => {
-					durationProcess.on('close', (durationCode) => {
-						if (durationCode == 0) {
-							const fileInfo = {
-								duration: duration, // 时长（秒）
-							}
-							console.log(fileInfo)
-							resolve(fileInfo)
-						} else {
-							console.error('Error getting video file info:', error)
-							reject(error)
+					fluentFfmpeg.ffprobe(filePath, (err, metadata) => {
+						if (err) {
+							console.error('Error getting media info:', err)
+							reject(err)
 						}
+
+						// 从 metadata 中获取开始时间、结束时间和时长
+						const startTime = metadata.format.start_time
+						const endTime = startTime + metadata.format.duration
+						const duration = metadata.format.duration
+						resolve({ startTime, duration, endTime, ...metadata.format })
 					})
 				})
 			} catch (error) {
@@ -303,6 +284,60 @@ export default {
 				}
 			} catch (error) {
 				console.error('Error uploading file:', error)
+			}
+		}) /
+			//////////////////////
+			// 在主进程中启动录制
+			ipcMain.on('start-recording', (event, cameraList, dirName) => {
+				let newCameraList = JSON.parse(cameraList)
+				newCameraList.forEach(async (camera, index) => {
+					const outputDir = path.join(app.getPath('downloads'), 'videos', `${dirName}`)
+					try {
+						await fs.promises.access(outputDir)
+					} catch (error) {
+						await fs.promises.mkdir(outputDir, { recursive: true })
+					}
+					const outputPath = path.join(outputDir, `${dirName}_${index}.flv`) // 生成路径文件
+					const ffmpegProcess = spawn('ffmpeg', [
+						'-f',
+						'avfoundation',
+						'-framerate',
+						'30',
+						'-video_size',
+						'640x480',
+						'-i',
+						`${index}:0`,
+						'-c:v',
+						'libx264',
+						'-c:a',
+						'aac',
+						'-b:a',
+						'256k', // 设置音频比特率
+						'-ar',
+						44100, // 设置音频采样率
+						// '-af', 'aresample=async=1,highpass=f=200,lowpass=f=3000', // 降噪和滤波
+                        '-strict','experimental',
+						outputPath,
+					])
+
+					recordingProcesses[index] = ffmpegProcess
+
+					ffmpegProcess.on('close', (code) => {
+						if (code === 0) {
+							console.log(`摄像头 ${camera.label} 录制完成`)
+						} else {
+							console.error(`摄像头 ${camera.label} 录制出错，错误码：`, code)
+						}
+						delete recordingProcesses[index]
+					})
+				})
+			})
+		// 监听停止录制事件
+		ipcMain.on('stop-recording', () => {
+			console.log('Stopping recording for all cameras')
+			for (const index in recordingProcesses) {
+				recordingProcesses[index].kill()
+				delete recordingProcesses[index]
 			}
 		})
 	},

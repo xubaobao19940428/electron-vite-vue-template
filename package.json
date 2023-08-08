@@ -22,6 +22,8 @@
 		"archiver": "^5.3.1",
 		"child_process": "^1.0.2",
 		"element-plus": "^2.3.7",
+		"fix-webm-duration": "^1.0.5",
+		"fluent-ffmpeg": "^2.1.2",
 		"vue": "^3.3.4",
 		"vue-router": "^4.2.4"
 	},

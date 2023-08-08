@@ -4,6 +4,8 @@ const fs = require("fs");
 const path$1 = require("path");
 require("archiver");
 const { spawn } = require("child_process");
+const fluentFfmpeg = require("fluent-ffmpeg");
+const recordingProcesses = {};
 async function uploadChunk(filePath, chunkNumber, chunkData) {
   const response = await fetch("http://your-server/upload", {
     method: "POST",
@@ -33,13 +35,12 @@ const setIpc = {
   setDefaultIpcMain() {
     ipcMain.handle("save-data-flv", async (event, { name, buffer, parentDirName }) => {
       try {
-        console.log("正在保存视频");
         const outputDir = path$1.join(app$1.getPath("downloads"), "videos", `${parentDirName}`);
         const tempWebMPath = path$1.join(outputDir, `${name}.mp4`);
         const outputVideoPath = path$1.join(outputDir, `${name}.flv`);
         try {
           await fs.promises.access(outputDir);
-        } catch (error2) {
+        } catch (error) {
           await fs.promises.mkdir(outputDir, { recursive: true });
         }
         await fs.promises.writeFile(tempWebMPath, Buffer.from(buffer));
@@ -65,8 +66,8 @@ const setIpc = {
             }
           });
         });
-      } catch (error2) {
-        console.error("Error saving video:", error2);
+      } catch (error) {
+        console.error("Error saving video:", error);
       }
     });
     ipcMain.handle("get-file-list", async (event) => {
@@ -75,9 +76,9 @@ const setIpc = {
         const files = await fs.promises.readdir(videosDir);
         const filesList = files.filter((file) => !file.startsWith(".DS_Store"));
         return filesList;
-      } catch (error2) {
-        console.error("Error getting file list:", error2);
-        throw error2;
+      } catch (error) {
+        console.error("Error getting file list:", error);
+        throw error;
       }
     });
     ipcMain.handle("get-video-files", async (event, folder) => {
@@ -85,38 +86,28 @@ const setIpc = {
         const folderPath = path$1.join(app$1.getPath("downloads"), "videos", folder);
         const files = await fs.promises.readdir(folderPath);
         return files;
-      } catch (error2) {
-        console.error("Error getting video files:", error2);
-        throw error2;
+      } catch (error) {
+        console.error("Error getting video files:", error);
+        throw error;
       }
     });
     ipcMain.handle("get-video-file-info", async (event, filePath) => {
       try {
-        const durationProcess = spawn("ffprobe", ["-i", filePath, "-show_entries", "format=duration", "-v", "error", "-of", "csv=p=0"], { stdio: "pipe" });
-        let duration = null;
-        let startTime = null;
-        durationProcess.stdout.on("data", (data) => {
-          duration = parseFloat(data.toString().trim());
-          console.log(duration);
-        });
         return new Promise((resolve, reject) => {
-          durationProcess.on("close", (durationCode) => {
-            if (durationCode == 0) {
-              const fileInfo = {
-                duration
-                // 时长（秒）
-              };
-              console.log(fileInfo);
-              resolve(fileInfo);
-            } else {
-              console.error("Error getting video file info:", error);
-              reject(error);
+          fluentFfmpeg.ffprobe(filePath, (err, metadata) => {
+            if (err) {
+              console.error("Error getting media info:", err);
+              reject(err);
             }
+            const startTime = metadata.format.start_time;
+            const endTime = startTime + metadata.format.duration;
+            const duration = metadata.format.duration;
+            resolve({ startTime, duration, endTime, ...metadata.format });
           });
         });
-      } catch (error2) {
-        console.error("Error getting video file info:", error2);
-        throw error2;
+      } catch (error) {
+        console.error("Error getting video file info:", error);
+        throw error;
       }
     });
     ipcMain.handle("open-window", (event, args) => {
@@ -156,8 +147,61 @@ const setIpc = {
             });
           }
         }
-      } catch (error2) {
-        console.error("Error uploading file:", error2);
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      }
+    }) / //////////////////////
+    // 在主进程中启动录制
+    ipcMain.on("start-recording", (event, cameraList, dirName) => {
+      let newCameraList = JSON.parse(cameraList);
+      newCameraList.forEach(async (camera, index) => {
+        const outputDir = path$1.join(app$1.getPath("downloads"), "videos", `${dirName}`);
+        try {
+          await fs.promises.access(outputDir);
+        } catch (error) {
+          await fs.promises.mkdir(outputDir, { recursive: true });
+        }
+        const outputPath = path$1.join(outputDir, `${dirName}_${index}.flv`);
+        const ffmpegProcess = spawn("ffmpeg", [
+          "-f",
+          "avfoundation",
+          "-framerate",
+          "30",
+          "-video_size",
+          "640x480",
+          "-i",
+          `${index}:0`,
+          "-c:v",
+          "libx264",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "256k",
+          // 设置音频比特率
+          "-ar",
+          44100,
+          // 设置音频采样率
+          // '-af', 'aresample=async=1,highpass=f=200,lowpass=f=3000', // 降噪和滤波
+          "-strict",
+          "experimental",
+          outputPath
+        ]);
+        recordingProcesses[index] = ffmpegProcess;
+        ffmpegProcess.on("close", (code) => {
+          if (code === 0) {
+            console.log(`摄像头 ${camera.label} 录制完成`);
+          } else {
+            console.error(`摄像头 ${camera.label} 录制出错，错误码：`, code);
+          }
+          delete recordingProcesses[index];
+        });
+      });
+    });
+    ipcMain.on("stop-recording", () => {
+      console.log("Stopping recording for all cameras");
+      for (const index in recordingProcesses) {
+        recordingProcesses[index].kill();
+        delete recordingProcesses[index];
       }
     });
   }
