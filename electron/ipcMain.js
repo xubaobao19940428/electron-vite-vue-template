@@ -2,7 +2,7 @@
  * @Author: qiancheng 915775317@qq.com
  * @Date: 2023-07-27 16:15:21
  * @LastEditors: qiancheng 915775317@qq.com
- * @LastEditTime: 2023-08-08 17:54:13
+ * @LastEditTime: 2023-08-10 18:34:41
  * @FilePath: /electron-vite-vue-template/electron/ipcMain.js
  * @Description: 这里是所有的ipcMain注册事件
  *  */
@@ -12,6 +12,7 @@ const path = require('path')
 const archiver = require('archiver')
 const { spawn } = require('child_process')
 const fluentFfmpeg = require('fluent-ffmpeg')
+const sqlite3 = require('better-sqlite3')
 // 定义一个数组来存储正在录制的摄像头
 // const recordingProcesses = []
 const recordingProcesses = {}
@@ -137,7 +138,7 @@ export default {
 		ipcMain.handle('save-data-flv', async (event, { name, buffer, parentDirName }) => {
 			try {
 				const outputDir = path.join(app.getPath('downloads'), 'videos', `${parentDirName}`)
-				const tempWebMPath = path.join(outputDir, `${name}.mp4`)
+				const tempWebMPath = path.join(outputDir, `${name}.webm`)
 				const outputVideoPath = path.join(outputDir, `${name}.flv`) // 使用视频保存路径
 				try {
 					await fs.promises.access(outputDir)
@@ -316,7 +317,8 @@ export default {
 						'-ar',
 						44100, // 设置音频采样率
 						// '-af', 'aresample=async=1,highpass=f=200,lowpass=f=3000', // 降噪和滤波
-                        '-strict','experimental',
+						'-strict',
+						'experimental',
 						outputPath,
 					])
 
@@ -339,6 +341,41 @@ export default {
 				recordingProcesses[index].kill()
 				delete recordingProcesses[index]
 			}
+		})
+		//////////splite3生成以及查询
+		ipcMain.handle('search-splite3', (event, params) => {
+			return new Promise((resolve, reject) => {
+				console.log(path.join(app.getPath('userData'), 'mydb.db'))
+				const db = new sqlite3(path.join(app.getPath('userData'), 'mydb.db'))
+				// // 创建一个表
+				// db.exec('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, age TEXT)')
+
+				// // 插入数据
+				// const insert = db.prepare('INSERT INTO users (name,age) VALUES (?,?)')
+				// insert.run('John Doe','10')
+
+				const select = db.prepare('SELECT * FROM cases')
+				const users = select.all()
+				console.log(users)
+				resolve(users)
+				db.close()
+			})
+		})
+		//splite3插入数据
+		ipcMain.handle('inset-splite3', (event, params) => {
+			let newData = JSON.parse(params)
+			const db = new sqlite3(path.join(app.getPath('userData'), 'mydb.db'))
+			// 创建一个表
+			db.exec('CREATE TABLE IF NOT EXISTS cases (id INTEGER PRIMARY KEY,caseNo TEXT,caseViewId TEXT, distributionCaseId TEXT,distributionOrganId TEXT,planTime TEXT,state TEXT)')
+
+			// 插入数据
+			const insert = db.prepare('INSERT INTO cases (caseNo,caseViewId,distributionCaseId,distributionOrganId,planTime,state) VALUES (@caseNo,@caseViewId,@distributionCaseId,@distributionOrganId,@planTime,@state)')
+			// insert.run()
+			const insertMany = db.transaction((cats) => {
+				for (const cat of cats) insert.run(cat)
+			})
+            insertMany(newData)
+			// db.close()
 		})
 	},
 }

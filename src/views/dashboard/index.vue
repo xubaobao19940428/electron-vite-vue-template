@@ -240,8 +240,9 @@ export default {
          */
         async getCamera () {
             const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter((device) => device.kind === 'videoinput');
+            const videoDevices = devices.filter((device) => device.kind === 'videoinput'&&device.label.includes('Webcam'));
             this.videoDeviceList = videoDevices
+            console.log(this.videoDeviceList)
             this.setVideoAttch(this.videoDeviceList)
         },
         /**

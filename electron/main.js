@@ -2,7 +2,7 @@
  * @Author: qiancheng 915775317@qq.com
  * @Date: 2023-07-27 16:12:58
  * @LastEditors: qiancheng 915775317@qq.com
- * @LastEditTime: 2023-08-02 11:00:23
+ * @LastEditTime: 2023-08-10 15:55:42
  * @FilePath: /electron-vite-vue-template/electron/main.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -29,7 +29,7 @@ const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 setIpc.setDefaultIpcMain()
 function createWindow() {
 	mainWindow = new BrowserWindow({
-		width: 1280,
+		width: 1480,
 		height: 780,
 		icon: path.join(process.env.PUBLIC, 'vite.svg'),
 		webPreferences: {

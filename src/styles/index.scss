@@ -1,13 +1,24 @@
 // @import './iconfont.css';
-@import './reset.css';
-@import './element-plus.scss';
-@import './layout.scss';
+@import "./reset.css";
+@import "./element-plus.scss";
+@import "./layout.scss";
 $bem-use-namespaces: false;
+@font-face {
+    font-family: "YouSheBiaoTiHei"; /* Project id 4085711 */
+    src: url("YouSheBiaoTiHei-2.ttf");
+}
 body {
     -moz-osx-font-smoothing: grayscale;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
-    font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
+    font-family:
+        Helvetica Neue,
+        Helvetica,
+        PingFang SC,
+        Hiragino Sans GB,
+        Microsoft YaHei,
+        Arial,
+        sans-serif;
 }
 
 html {
@@ -121,7 +132,6 @@ a:hover {
     width: 50%;
 }
 
-
 /* 列表页预览图片 */
 
 .thumbnail {
@@ -166,7 +176,7 @@ a:hover {
         align-items: center;
         justify-content: center;
         font-size: 12px;
-        background: rgba(0, 0, 0, .5);
+        background: rgba(0, 0, 0, 0.5);
         color: #fff;
         position: absolute;
         right: 0px;
@@ -297,7 +307,7 @@ a:hover {
 }
 
 .required {
-    color: #E71F19;
+    color: #e71f19;
 }
 
 .form-tips {

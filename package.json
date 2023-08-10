@@ -10,6 +10,7 @@
 	"description": "electron-vite-vue示例项目",
 	"scripts": {
 		"dev": "vite",
+        "rebuild": "electron-rebuild -f -w better-sqlite3",
 		"build": "vite build && electron-builder",
 		"build:mac": "vite build && electron-builder --mac",
 		"build:win32": "vite build && electron-builder --win  --ia32",
@@ -20,12 +21,16 @@
 		"@electron/remote": "^2.0.10",
 		"@element-plus/icons-vue": "^2.1.0",
 		"archiver": "^5.3.1",
+		"axios": "^1.4.0",
+		"better-sqlite3": "^8.5.0",
 		"child_process": "^1.0.2",
 		"element-plus": "^2.3.7",
 		"fix-webm-duration": "^1.0.5",
 		"fluent-ffmpeg": "^2.1.2",
+		"js-md5": "^0.7.3",
 		"vue": "^3.3.4",
-		"vue-router": "^4.2.4"
+		"vue-router": "^4.2.4",
+		"vuex": "^4.1.0"
 	},
 	"devDependencies": {
 		"@vitejs/plugin-vue": "^4.2.3",
@@ -33,72 +38,11 @@
 		"electron": "^25.3.1",
 		"electron-builder": "^24.4.0",
 		"sass": "^1.64.1",
-		"vite": "^4.4.5",
+		"vite": "4.4.5",
 		"vite-plugin-electron": "^0.12.0",
 		"vite-plugin-electron-renderer": "^0.14.5"
 	},
-	"build": {
-		"asar": false,
-		"extraFiles": [],
-		"publish": [
-			{
-				"provider": "generic",
-				"url": "http://127.0.0.1"
-			}
-		],
-		"productName": "electron-vite-vue-template",
-		"appId": "org.Sky.electron-vite-vue",
-		"directories": {
-			"output": "output"
-		},
-		"files": [
-			"dist-electron",
-			"dist"
-		],
-		"dmg": {
-			"contents": [
-				{
-					"x": 410,
-					"y": 150,
-					"type": "link",
-					"path": "/Applications"
-				},
-				{
-					"x": 130,
-					"y": 150,
-					"type": "file"
-				}
-			]
-		},
-		"mac": {
-			"entitlements": "entitlements.mac.plist",
-			"hardenedRuntime": true,
-			"extendInfo": {
-				"NSMicrophoneUsageDescription": "请允许本程序访问您的麦克风",
-				"NSCameraUsageDescription": "请允许本程序访问您的摄像头"
-			},
-			"icon": "build/icons/icon.icns",
-			"target": [
-				"dmg"
-			]
-		},
-		"win": {
-			"icon": "build/icons/icon.ico",
-			"target": [
-				{
-					"target": "nsis",
-					"arch": [
-						"x64",
-						"ia32"
-					]
-				}
-			]
-		},
-		"linux": {
-			"target": "deb",
-			"icon": "build/icons/icon.png"
-		}
-	},
+	"build": "./build/electron.build.config.js",
 	"permissions": [
 		"videoCapture",
 		"audioCapture"

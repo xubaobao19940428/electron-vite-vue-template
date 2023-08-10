@@ -5,6 +5,7 @@ const path$1 = require("path");
 require("archiver");
 const { spawn } = require("child_process");
 const fluentFfmpeg = require("fluent-ffmpeg");
+const sqlite3 = require("better-sqlite3");
 const recordingProcesses = {};
 async function uploadChunk(filePath, chunkNumber, chunkData) {
   const response = await fetch("http://your-server/upload", {
@@ -36,7 +37,7 @@ const setIpc = {
     ipcMain.handle("save-data-flv", async (event, { name, buffer, parentDirName }) => {
       try {
         const outputDir = path$1.join(app$1.getPath("downloads"), "videos", `${parentDirName}`);
-        const tempWebMPath = path$1.join(outputDir, `${name}.mp4`);
+        const tempWebMPath = path$1.join(outputDir, `${name}.webm`);
         const outputVideoPath = path$1.join(outputDir, `${name}.flv`);
         try {
           await fs.promises.access(outputDir);
@@ -204,6 +205,28 @@ const setIpc = {
         delete recordingProcesses[index];
       }
     });
+    ipcMain.handle("search-splite3", (event, params) => {
+      return new Promise((resolve, reject) => {
+        console.log(path$1.join(app$1.getPath("userData"), "mydb.db"));
+        const db = new sqlite3(path$1.join(app$1.getPath("userData"), "mydb.db"));
+        const select = db.prepare("SELECT * FROM cases");
+        const users = select.all();
+        console.log(users);
+        resolve(users);
+        db.close();
+      });
+    });
+    ipcMain.handle("inset-splite3", (event, params) => {
+      let newData = JSON.parse(params);
+      const db = new sqlite3(path$1.join(app$1.getPath("userData"), "mydb.db"));
+      db.exec("CREATE TABLE IF NOT EXISTS cases (id INTEGER PRIMARY KEY,caseNo TEXT,caseViewId TEXT, distributionCaseId TEXT,distributionOrganId TEXT,planTime TEXT,state TEXT)");
+      const insert = db.prepare("INSERT INTO cases (caseNo,caseViewId,distributionCaseId,distributionOrganId,planTime,state) VALUES (@caseNo,@caseViewId,@distributionCaseId,@distributionOrganId,@planTime,@state)");
+      const insertMany = db.transaction((cats) => {
+        for (const cat of cats)
+          insert.run(cat);
+      });
+      insertMany(newData);
+    });
   }
 };
 const { dialog } = require("electron");
@@ -293,7 +316,7 @@ const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 setIpc.setDefaultIpcMain();
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1280,
+    width: 1480,
     height: 780,
     icon: path.join(process.env.PUBLIC, "vite.svg"),
     webPreferences: {
