@@ -12,12 +12,21 @@ const routes = [
 		path: '/',
 		redirect: '/dashboard/home2',
 	},
-    {
+	{
 		path: '/dashboard/home2',
 		name: 'dashboard2',
 		component: () => import('@/views/dashboard/index2.vue'),
 		meta: {
 			title: '首页',
+			noPermission: true,
+		},
+	},
+	{
+		path: '/dashboard/openCaseInfo',
+		name: 'openCaseInfo',
+		component: () => import('@/views/dashboard/openCaseInfo.vue'),
+		meta: {
+			title: '案件详情信息',
 			noPermission: true,
 		},
 	},

@@ -344,38 +344,95 @@ export default {
 		})
 		//////////splite3生成以及查询
 		ipcMain.handle('search-splite3', (event, params) => {
+			let serachParmas = JSON.parse(params)
 			return new Promise((resolve, reject) => {
-				console.log(path.join(app.getPath('userData'), 'mydb.db'))
+				let select = null
 				const db = new sqlite3(path.join(app.getPath('userData'), 'mydb.db'))
-				// // 创建一个表
-				// db.exec('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, age TEXT)')
-
-				// // 插入数据
-				// const insert = db.prepare('INSERT INTO users (name,age) VALUES (?,?)')
-				// insert.run('John Doe','10')
-
-				const select = db.prepare('SELECT * FROM cases')
-				const users = select.all()
-				console.log(users)
-				resolve(users)
+				// 创建一个表
+				db.exec(`CREATE TABLE IF NOT EXISTS cases (
+                    id INTEGER PRIMARY KEY,
+                    caseNo TEXT UNIQUE,  -- 设置caseNo字段为唯一键
+                    caseViewId TEXT,
+                    distributionCaseId TEXT,
+                    distributionOrganId TEXT,
+                    planTime TEXT,
+                    state TEXT,
+                    caseOfAction TEXT,
+                    caseCompanyList TEXT,
+                    caseCourtPlan TEXT,
+                    casePeopleList TEXT,
+                    caseRequire TEXT,
+                    caseTitle TEXT,
+                    org TEXT,
+                    outTzCase TEXT,
+                    syncTime TEXT
+                )`)
+				if (serachParmas.caseNo) {
+					select = db.prepare(`SELECT * FROM cases WHERE caseNo LIKE '%${serachParmas.caseNo}%'`)
+				} else {
+					select = db.prepare(`SELECT * FROM cases`)
+				}
+				const caseList = select.all()
+				resolve(caseList)
 				db.close()
 			})
 		})
 		//splite3插入数据
 		ipcMain.handle('inset-splite3', (event, params) => {
-			let newData = JSON.parse(params)
-			const db = new sqlite3(path.join(app.getPath('userData'), 'mydb.db'))
-			// 创建一个表
-			db.exec('CREATE TABLE IF NOT EXISTS cases (id INTEGER PRIMARY KEY,caseNo TEXT,caseViewId TEXT, distributionCaseId TEXT,distributionOrganId TEXT,planTime TEXT,state TEXT)')
+			return new Promise((resolve, reject) => {
+				let newData = JSON.parse(params)
+				const db = new sqlite3(path.join(app.getPath('userData'), 'mydb.db'))
 
-			// 插入数据
-			const insert = db.prepare('INSERT INTO cases (caseNo,caseViewId,distributionCaseId,distributionOrganId,planTime,state) VALUES (@caseNo,@caseViewId,@distributionCaseId,@distributionOrganId,@planTime,@state)')
-			// insert.run()
-			const insertMany = db.transaction((cats) => {
-				for (const cat of cats) insert.run(cat)
+				db.exec(`CREATE TABLE IF NOT EXISTS cases (
+                id INTEGER PRIMARY KEY,
+                caseNo TEXT UNIQUE,  -- 设置caseNo字段为唯一键
+                caseViewId TEXT,
+                distributionCaseId TEXT,
+                distributionOrganId TEXT,
+                planTime TEXT,
+                state TEXT,
+                caseOfAction TEXT,
+                caseCompanyList TEXT,
+                caseCourtPlan TEXT,
+                casePeopleList TEXT,
+                caseRequire TEXT,
+                caseTitle TEXT,
+                org TEXT,
+                outTzCase TEXT,
+                syncTime TEXT
+            )`)
+
+				// 插入数据
+				const insert = db.prepare('INSERT OR REPLACE INTO cases (caseNo,caseViewId,distributionCaseId,distributionOrganId,planTime,state,caseOfAction,caseCompanyList,caseCourtPlan,casePeopleList,caseRequire,caseTitle,org,outTzCase,syncTime) VALUES (@caseNo,@caseViewId,@distributionCaseId,@distributionOrganId,@planTime,@state,@caseOfAction,@caseCompanyList,@caseCourtPlan,@casePeopleList,@caseRequire,@caseTitle,@org,@outTzCase,@syncTime)')
+				// insert.run()
+				const insertMany = db.transaction((cats) => {
+					cats.forEach((item) => {
+						// item.caseOfAction = item.caseOfAction ? item.caseOfAction : null
+						item.caseCompanyList = item.caseCompanyList && item.caseCompanyList.length ? JSON.stringify(item.caseCompanyList) : null
+						item.casePeopleList = item.casePeopleList && item.casePeopleList.length ? JSON.stringify(item.casePeopleList) : null
+						item.caseCourtPlan = item.caseCourtPlan ? JSON.stringify(item.caseCourtPlan) : null
+						insert.run(item)
+					})
+
+					// for (const cat of cats) insert.run(cat)
+				})
+				insertMany(newData)
+				db.close()
+                resolve(true)
 			})
-            insertMany(newData)
-			// db.close()
+		})
+        //得到案件详情
+        ipcMain.handle('search-splite3-case-info', (event, distributionCaseId) => {
+			
+			return new Promise((resolve, reject) => {
+				let select = null
+				const db = new sqlite3(path.join(app.getPath('userData'), 'mydb.db'))
+				select = db.prepare(`SELECT * FROM cases WHERE distributionCaseId = ?`)
+				const caseInfo = select.all(distributionCaseId)
+                console.log(caseInfo)
+				resolve(caseInfo)
+				db.close()
+			})
 		})
 	},
 }

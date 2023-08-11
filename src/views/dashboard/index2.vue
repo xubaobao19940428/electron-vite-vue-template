@@ -16,17 +16,14 @@
                     <el-form-item label="案件编号：">
                         <el-input v-model="queryData.caseNo" placeholder="请输入案件编号" clearable></el-input>
                     </el-form-item>
-                    <el-form-item label="案件名称：">
-                        <el-input v-model="queryData.caseName" placeholder="请输入案件名称" clearable></el-input>
-                    </el-form-item>
                     <el-form-item>
-                        <el-button type="primary" @click="getList(1)">查 询</el-button>
-                        <el-button type="primary" @click="getOtherList(1)">刷 新</el-button>
+                        <el-button type="primary" @click="getCaseList(1)">查 询</el-button>
+                        <el-button type="primary" :loading="updateLoading" @click="getOtherList(1)">刷 新</el-button>
                         <!-- <el-button @click="clearSearch('stateList')">重 置</el-button> -->
                     </el-form-item>
                 </el-form>
             </div>
-            <el-table :data="tableData" style="width: 100%" :header-cell-style="{
+            <el-table :data="tableData" style="width: 100%" :loading="loading" :header-cell-style="{
                 height: '44px',
                 color: '#2C3034',
                 'font-size': '14px',
@@ -87,16 +84,9 @@
                         <el-tag v-if="scope.row.state == 'End'" type="info"> 闭庭 </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column fixed="right" label="开庭操作" width="300" align="center">
+                <el-table-column fixed="right" label="开庭操作" width="100" align="center">
                     <template #default="scope">
-                        <el-button type="text" @click="open(scope.row)"> 查看 </el-button>
-                        <el-button v-if="scope.row.state == 'End'" type="text" @click="reopen(scope.row)">
-                            再排期
-                        </el-button>
-                        <el-button type="text" v-if="scope.row.state == 'Trailing'" @click="send(scope.row)">
-                            发送开庭通知
-                        </el-button>
-                        <!-- <el-button type="text" @click="caseModelInfo(scope.row)">模版下载</el-button> -->
+                        <el-button type="text" @click="openTrial(scope.row)"> 开 庭 </el-button>
                     </template>
                 </el-table-column>
                 <template #empty>
@@ -119,12 +109,14 @@ export default {
             // 搜索条件
             queryData: {
                 caseNo: "",
-                caseName: "",
                 state: "All",
             },
             pageSize: 100,
             pageNum: 1,
-            caseList: []
+            caseList: [],
+            tableData: [],
+            loading: false,
+            updateLoading: false,
         };
     },
 
@@ -138,10 +130,19 @@ export default {
 
     methods: {
         getCaseList () {
-            ipcRenderer.invoke('search-splite3').then(response => {
+            this.loading = true
+            ipcRenderer.invoke('search-splite3', JSON.stringify(this.queryData)).then(response => {
                 if (response) {
-                    console.log(response)
+                    response.forEach(item => {
+                        item.caseCompanyList = item.caseCompanyList ? JSON.parse(item.caseCompanyList) : null
+                        item.casePeopleList = item.casePeopleList ? JSON.parse(item.casePeopleList) : null
+                        item.caseCourtPlan = item.caseCourtPlan ? JSON.parse(item.caseCourtPlan) : null
+                    })
+                    this.tableData = response
+
                 }
+            }).finally(() => {
+                this.loading = false
             })
         },
         /**
@@ -151,6 +152,7 @@ export default {
             if (type == 1) {
                 this.caseList = []
                 this.pageNum = 1
+                this.updateLoading = true
             }
             let params = {
                 state: 'All',
@@ -163,12 +165,26 @@ export default {
                     if (response.data.length) {
                         this.getOtherList()
                     } else {
-                        // ipcRenderer.invoke('inset-splite3', JSON.stringify(this.caseList))
-                        console.log(this.caseList)
+                        ipcRenderer.invoke('inset-splite3', JSON.stringify(this.caseList)).then(response => {
+                            if (response) {
+                                this.getCaseList()
+                            }
+                        }).finally(() => {
+                            this.updateLoading = false
+                        })
+
                     }
                 }
             }).catch(error => {
 
+            })
+        },
+        openTrial(data){
+            this.$router.push({
+                name:'openCaseInfo',
+                query:{
+                    distributionCaseId:data.distributionCaseId
+                }
             })
         }
 
@@ -177,6 +193,10 @@ export default {
 
 </script>
 <style lang='scss' scoped>
+.case-list {
+    padding: 10px;
+}
+
 // 空数据
 .empty-box {
     padding: 30px 0 0 0;
