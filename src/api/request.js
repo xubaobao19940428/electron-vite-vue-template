@@ -78,7 +78,6 @@ function request({ url, method, data, $header, baseUrl, params }) {
 				}
 			})
 			.catch((err) => {
-				console.log(err)
 				reject(err.response)
 				let errResponseData = {}
 				if (err) errResponseData = deepClone(err.response)

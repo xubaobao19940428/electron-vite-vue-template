@@ -7,31 +7,6 @@ const { spawn } = require("child_process");
 const fluentFfmpeg = require("fluent-ffmpeg");
 const sqlite3 = require("better-sqlite3");
 const recordingProcesses = {};
-async function uploadChunk(filePath, chunkNumber, chunkData) {
-  const response = await fetch("http://your-server/upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/octet-stream",
-      "X-Chunk-Number": chunkNumber,
-      "X-File-Path": filePath
-    },
-    body: chunkData
-  });
-  const result = await response.json();
-  console.log("Chunk upload result:", result);
-}
-function loadUploadStatus(filePath) {
-  const statusFilePath = path$1.join(app$1.getPath("download"), filePath, `${filePath}.status.json`);
-  if (fs.existsSync(statusFilePath)) {
-    const statusData = fs.readFileSync(statusFilePath, "utf-8");
-    return JSON.parse(statusData);
-  }
-  return null;
-}
-function saveUploadStatus(filePath, status) {
-  const statusFilePath = path$1.join(app$1.getPath("downloads"), filePath, `${filePath}.status.json`);
-  fs.writeFileSync(statusFilePath, JSON.stringify(status));
-}
 const setIpc = {
   setDefaultIpcMain() {
     ipcMain.handle("save-data-flv", async (event, { name, buffer, parentDirName }) => {
@@ -57,9 +32,11 @@ const setIpc = {
           ffmpegProcess.on("close", (code) => {
             if (code === 0) {
               console.log("FLV格式视频保存成功");
-              fs.promises.unlink(tempWebMPath).catch((err) => {
-                console.error("删除临时WebM文件时出错:", err);
-              });
+              if (tempWebMPath) {
+                fs.promises.unlink(tempWebMPath).catch((err) => {
+                  console.error("删除临时WebM文件时出错:", err);
+                });
+              }
               resolve();
             } else {
               console.error("FFmpeg转换出错", code);
@@ -122,37 +99,6 @@ const setIpc = {
       ChildWin.once("show", () => {
       });
     });
-    ipcMain.handle("start-upload", async (event, { filePath, chunkSize }) => {
-      try {
-        const fileSize = fs.statSync(filePath).size;
-        const totalChunks = Math.ceil(fileSize / chunkSize);
-        let uploadedChunks = 0;
-        let status = loadUploadStatus(filePath);
-        if (status) {
-          uploadedChunks = status.uploadedChunks || 0;
-        }
-        for (let i = uploadedChunks; i < totalChunks; i++) {
-          const start = i * chunkSize;
-          const end = Math.min(start + chunkSize, fileSize);
-          const chunkData = fs.readFileSync(filePath, { start, end });
-          await uploadChunk(filePath, i, chunkData);
-          status = {
-            uploadedChunks: i + 1,
-            totalChunks
-          };
-          saveUploadStatus(filePath, status);
-          if (i === totalChunks - 1) {
-            dialog$1.showMessageBox({
-              message: "文件上传完成！",
-              type: "info"
-            });
-          }
-        }
-      } catch (error) {
-        console.error("Error uploading file:", error);
-      }
-    }) / //////////////////////
-    // 在主进程中启动录制
     ipcMain.on("start-recording", (event, cameraList, dirName) => {
       let newCameraList = JSON.parse(cameraList);
       newCameraList.forEach(async (camera, index) => {

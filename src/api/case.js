@@ -9,13 +9,28 @@
 import request from './request.js'
 /**
  * @description 其他的案件列表
- * @param {*} data 
- * @returns 
+ * @param {*} data
+ * @returns
  */
 export const otherCaseList = function (data) {
 	return request({
 		url: '/case/page',
 		method: 'get',
 		params: data,
+	})
+}
+/**
+ * @description 同步视频至庭
+ * @param {*} data
+ * @returns
+ */
+export const syncVideoToTrial = function (data) {
+	return request({
+		url: '/srs/uploadFlv',
+		method: 'post',
+		data: data,
+        $header:{
+            'Content-Type': 'multipart/form-data',
+        }
 	})
 }

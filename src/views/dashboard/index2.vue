@@ -18,8 +18,8 @@
                     </el-form-item>
                     <el-form-item>
                         <el-button type="primary" @click="getCaseList(1)">查 询</el-button>
-                        <el-button type="primary" :loading="updateLoading" @click="getOtherList(1)">刷 新</el-button>
-                        <!-- <el-button @click="clearSearch('stateList')">重 置</el-button> -->
+                        <el-button type="primary" :loading="updateLoading" @click="getOtherList(1)">下载案件</el-button>
+                        <el-button type="primary" @click="startUpload">同步视频至系统</el-button>
                     </el-form-item>
                 </el-form>
             </div>
@@ -102,7 +102,11 @@
 
 <script>
 import { ipcRenderer } from 'electron';
-import { otherCaseList } from '@/api/case.js'
+import { app } from '@electron/remote';
+import fs from 'fs';
+import path from 'path';
+import axios from 'axios'
+import { otherCaseList, syncVideoToTrial } from '@/api/case.js'
 export default {
     data () {
         return {
@@ -179,13 +183,76 @@ export default {
 
             })
         },
-        openTrial(data){
+        openTrial (data) {
             this.$router.push({
-                name:'openCaseInfo',
-                query:{
-                    distributionCaseId:data.distributionCaseId
+                name: 'openCaseInfo',
+                query: {
+                    distributionCaseId: data.distributionCaseId
                 }
             })
+        },
+        /**
+         * 给一个开始上传的按钮
+         */
+        async startUpload () {
+            const rootFolderPath = path.join(app.getPath('downloads'), 'videos'); // Your root folder path
+            const markerFileExtension = '.uploaded';
+
+            const subfolders = this.getSubfolders(rootFolderPath);
+
+            for (const subfolder of subfolders) {
+                const files = this.getFilesToUpload(subfolder, markerFileExtension);
+
+                for (const file of files) {
+                    await this.uploadFile(file);
+
+                }
+            }
+        },
+        getSubfolders (folderPath) {
+            return fs.readdirSync(folderPath)
+                .filter(item => fs.statSync(path.join(folderPath, item)).isDirectory())
+                .map(subfolder => path.join(folderPath, subfolder));
+        },
+        getFilesToUpload (folderPath, markerFileExtension) {
+            const files = fs.readdirSync(folderPath);
+
+            return files
+                .filter(file => path.extname(file) === '.flv' && !fs.existsSync(path.join(folderPath, `${file}${markerFileExtension}`)))
+                .map(file => path.join(folderPath, file));
+        },
+        async uploadFile (filePath) {
+            const uploadApiEndpoint = 'https://jsonplaceholder.typicode.com/posts/';
+            const markerFileExtension = '.uploaded';
+            try {
+                // fs.createReadStream(filePath) fs.readFileSync(filePath);
+                const fileData = fs.readFileSync(filePath);
+                let formData = new FormData()
+                formData.append('file', new Blob([fileData]), path.basename(filePath))
+                // Implement your file uploading logic using Axios or other methods
+                await syncVideoToTrial(formData).then(response => {
+                    if (response) {
+                        this.createMarkerFile(filePath, markerFileExtension);
+                    }
+                })
+
+                // const response = await axios.post(uploadApiEndpoint, {
+
+                // });
+            } catch (error) {
+                console.error(`Error uploading ${filePath}: ${error.message}`);
+            }
+        },
+        async createMarkerFile (filePath, markerFileExtension) {
+            const markerFilePath = `${filePath}${markerFileExtension}`;
+
+            try {
+                // Create the marker file
+                fs.writeFileSync(markerFilePath, '');
+                console.log(`Created marker file for ${filePath}`);
+            } catch (error) {
+                console.error(`Error creating marker file for ${filePath}: ${error.message}`);
+            }
         }
 
     }

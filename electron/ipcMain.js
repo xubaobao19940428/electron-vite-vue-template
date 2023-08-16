@@ -72,37 +72,6 @@ async function saveRecording(recordings) {
 	})
 }
 
-/**
- * 文件上传
- */
-async function uploadChunk(filePath, chunkNumber, chunkData) {
-	const response = await fetch('http://your-server/upload', {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/octet-stream',
-			'X-Chunk-Number': chunkNumber,
-			'X-File-Path': filePath,
-		},
-		body: chunkData,
-	})
-
-	const result = await response.json()
-	console.log('Chunk upload result:', result)
-}
-
-function loadUploadStatus(filePath) {
-	const statusFilePath = path.join(app.getPath('download'), filePath, `${filePath}.status.json`)
-	if (fs.existsSync(statusFilePath)) {
-		const statusData = fs.readFileSync(statusFilePath, 'utf-8')
-		return JSON.parse(statusData)
-	}
-	return null
-}
-
-function saveUploadStatus(filePath, status) {
-	const statusFilePath = path.join(app.getPath('downloads'), filePath, `${filePath}.status.json`)
-	fs.writeFileSync(statusFilePath, JSON.stringify(status))
-}
 export default {
 	setDefaultIpcMain() {
 		//注释掉的这一段代码是用来将录屏问件保存为zip作准备
@@ -164,9 +133,11 @@ export default {
 						if (code === 0) {
 							console.log('FLV格式视频保存成功')
 							// 删除临时的WebM文件
-							fs.promises.unlink(tempWebMPath).catch((err) => {
-								console.error('删除临时WebM文件时出错:', err)
-							})
+							if (tempWebMPath) {
+								fs.promises.unlink(tempWebMPath).catch((err) => {
+									console.error('删除临时WebM文件时出错:', err)
+								})
+							}
 
 							resolve()
 						} else {
@@ -248,45 +219,7 @@ export default {
 				// ChildWin.webContents.send('send-data-test', args.sendData)
 			})
 		})
-		/**
-		 * 文件上传
-		 */
-		ipcMain.handle('start-upload', async (event, { filePath, chunkSize }) => {
-			try {
-				const fileSize = fs.statSync(filePath).size
-				const totalChunks = Math.ceil(fileSize / chunkSize)
-
-				let uploadedChunks = 0
-				let status = loadUploadStatus(filePath)
-
-				if (status) {
-					uploadedChunks = status.uploadedChunks || 0
-				}
-
-				for (let i = uploadedChunks; i < totalChunks; i++) {
-					const start = i * chunkSize
-					const end = Math.min(start + chunkSize, fileSize)
-
-					const chunkData = fs.readFileSync(filePath, { start, end })
-					await uploadChunk(filePath, i, chunkData)
-
-					status = {
-						uploadedChunks: i + 1,
-						totalChunks,
-					}
-					saveUploadStatus(filePath, status)
-
-					if (i === totalChunks - 1) {
-						dialog.showMessageBox({
-							message: '文件上传完成！',
-							type: 'info',
-						})
-					}
-				}
-			} catch (error) {
-				console.error('Error uploading file:', error)
-			}
-		}) /
+		
 			//////////////////////
 			// 在主进程中启动录制
 			ipcMain.on('start-recording', (event, cameraList, dirName) => {
@@ -418,18 +351,17 @@ export default {
 				})
 				insertMany(newData)
 				db.close()
-                resolve(true)
+				resolve(true)
 			})
 		})
-        //得到案件详情
-        ipcMain.handle('search-splite3-case-info', (event, distributionCaseId) => {
-			
+		//得到案件详情
+		ipcMain.handle('search-splite3-case-info', (event, distributionCaseId) => {
 			return new Promise((resolve, reject) => {
 				let select = null
 				const db = new sqlite3(path.join(app.getPath('userData'), 'mydb.db'))
 				select = db.prepare(`SELECT * FROM cases WHERE distributionCaseId = ?`)
 				const caseInfo = select.all(distributionCaseId)
-                console.log(caseInfo)
+				console.log(caseInfo)
 				resolve(caseInfo)
 				db.close()
 			})

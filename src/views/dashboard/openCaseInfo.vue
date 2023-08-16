@@ -14,6 +14,9 @@
                 </div>
             </template>
         </el-page-header>
+        <div id="dashboard-video">
+
+        </div>
         <el-card class="box-card">
             <template #header>
                 <div class="card-header">
@@ -22,24 +25,12 @@
             </template>
             <el-descriptions direction="vertical" :column="2" border>
                 <el-descriptions-item label="案件编号：">{{ caseViewList.caseNo }}</el-descriptions-item>
-                <el-descriptions-item label="省案件号：" v-if="caseViewList.outTzCase">{{ caseViewList.outTzCase.abb016
-                }}</el-descriptions-item>
                 <el-descriptions-item label="案件ID：">{{ caseViewList.distributionCaseId }}</el-descriptions-item>
                 <el-descriptions-item label="案件名称：">{{ caseViewList.caseTitle }}</el-descriptions-item>
                 <el-descriptions-item label="经办人员：">
                     <div v-for="(item, index) in caseHandlersList" :key="index" class="content-title">
                         <el-tag size="small">{{ item.name }}</el-tag>
                     </div>
-                </el-descriptions-item>
-                <el-descriptions-item label="首次开庭时间：">
-                    <span v-if="caseViewList.caseCourtPlan">
-                        {{ caseViewList.caseCourtPlan.planTime }}
-                    </span>
-                </el-descriptions-item>
-                <el-descriptions-item label="所属仲裁庭：">
-                    <span v-if="caseViewList.caseCourtPlan">
-                        {{ caseViewList.caseCourtPlan.court.title }}
-                    </span>
                 </el-descriptions-item>
                 <el-descriptions-item label="申请人：">
                     <div v-for="(item, index) in casePeopleList" :key="index + 'a'" class="content-title">
@@ -61,9 +52,7 @@
                 <el-descriptions-item label="仲裁请求：" :span="2">{{ caseViewList.caseRequire }}</el-descriptions-item>
             </el-descriptions>
         </el-card>
-        <div id="dashboard-video">
 
-        </div>
     </div>
 </template>
 
@@ -83,6 +72,7 @@ export default {
             start: false,
             recordEnd: false,
             mediaRecorderList: [],
+            startTime: '',
         };
     },
 
@@ -127,12 +117,26 @@ export default {
 
     methods: {
         /**
+         * 得到时间
+         * @param {*} timestamp 
+         * @param {*} type 
+         */
+        timestampToTime (timestamp) {
+            var date = new Date(timestamp)
+            var Y = date.getFullYear() + '_'
+            var M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '_'
+            var D = (date.getDate() + 1 <= 10 ? '0' + date.getDate() : date.getDate()) + '_'
+            var h = (date.getHours() + 1 <= 10 ? '0' + date.getHours() : date.getHours()) + '_'
+            var m = (date.getMinutes() + 1 <= 10 ? '0' + date.getMinutes() : date.getMinutes()) + '_'
+            var s = date.getSeconds() + 1 <= 10 ? '0' + date.getSeconds() : date.getSeconds()
+            return Y + M + D + h + m + s
+        },
+        /**
          * 得到案件信息
          */
         getCaseInfo () {
             ipcRenderer.invoke('search-splite3-case-info', this.distributionCaseId).then(response => {
                 if (response) {
-
                     response[0].caseCompanyList = response[0].caseCompanyList ? JSON.parse(response[0].caseCompanyList) : null
                     response[0].casePeopleList = response[0].casePeopleList ? JSON.parse(response[0].casePeopleList) : null
                     response[0].caseCourtPlan = response[0].caseCourtPlan ? JSON.parse(response[0].caseCourtPlan) : null
@@ -145,7 +149,8 @@ export default {
          */
         async getCamera () {
             const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter((device) => device.kind === 'videoinput' && device.label.includes('Webcam'));
+            // const videoDevices = devices.filter((device) => device.kind === 'videoinput' && device.label.includes('USB Camera'));
+            const videoDevices = devices.filter((device) => device.kind === 'videoinput')
             this.videoDeviceList = videoDevices
             console.log(this.videoDeviceList)
             this.setVideoAttch(this.videoDeviceList)
@@ -184,9 +189,9 @@ export default {
          */
         async startRecord () {
             let _this = this;
+            _this.startTime = _this.timestampToTime(new Date().getTime())
             try {
                 _this.start = true;
-                // console.log(_this.streamList)
                 _this.mediaRecorderList = _this.streamList.map((stream, index) => {
                     let startTime
                     let newIndex = index
@@ -199,7 +204,7 @@ export default {
                             var duration = Date.now() - startTime;
                             recordedChunks.push(event.data);
 
-                            _this.saveVideoChunks(recordedChunks, newIndex, _this.caseViewList.caseNo, duration);
+                            _this.saveVideoChunks(recordedChunks, newIndex, _this.caseViewList.distributionCaseId, duration);
 
                         }
                     };
@@ -207,10 +212,9 @@ export default {
                         var duration = Date.now() - startTime;
                         if (recordedChunks.length > 0) {
                             console.log('newIndex', newIndex)
-                            _this.saveVideoChunks(recordedChunks, newIndex, _this.caseViewList.caseNo, duration);
+                            _this.saveVideoChunks(recordedChunks, newIndex, _this.caseViewList.distributionCaseId, duration);
                         }
                     };
-
                     mediaRecorder.start(5000);
                     startTime = Date.now()
                     return mediaRecorder;
@@ -226,13 +230,13 @@ export default {
         },
 
         async saveVideoChunks (chunks, index, name, duration) {
-            console.log(duration)
+            let _this = this
             try {
                 const blob = new Blob(chunks, { type: "video/webm" })
                 ysFixWebmDuration(blob, duration, async function (fixedBlob) {
                     // displayResult(fixedBlob);
                     const buffer = await fixedBlob.arrayBuffer();
-                    ipcRenderer.invoke("save-data-flv", { name: name + '_' + index, buffer, parentDirName: name });
+                    ipcRenderer.invoke("save-data-flv", { name: name + '_' + index + '_' + _this.startTime, buffer, parentDirName: name, });
                 });
 
 
@@ -267,7 +271,7 @@ export default {
          * 停止
          * @param {*} stream 
          */
-         stopMediaStream (stream) {
+        stopMediaStream (stream) {
             const tracks = stream.getTracks();
             for (const track of tracks) {
                 track.stop();
@@ -316,6 +320,18 @@ export default {
 
     #dashboard-video {
         flex: 1;
+        display: flex;
+
+        :deep().video-box {
+            flex: 1;
+            height: 100%;
+
+            video {
+                width: 100%;
+                aspect-ratio: 16/9;
+            }
+        }
+
     }
 }
 </style>
