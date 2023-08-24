@@ -19,6 +19,21 @@ import menuconfig from './menu'
 // │ │ ├── main.js
 // │ │ └── preload.js
 // │
+const getBaseUrl = function () {
+	let configFilePath = ''
+	if (process.env.NODE_ENV === 'development') {
+		configFilePath = process.cwd() + '/extraResources/configSetting.json'
+	} else {
+		// const appPath = app.isPackaged ? app.getAppPath() : app.getPath('exe')
+		configFilePath = path.join(process.resourcesPath, 'extraResources/configSetting.json')
+	}
+
+	const configData = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'))
+
+	console.log('configData', configData)
+	return configData
+}
+const LocalPath = getBaseUrl().path
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, '../public')
 
@@ -82,6 +97,7 @@ app.on('window-all-closed', () => {
 })
 
 app.whenReady().then(() => {
+	process.env.PATH += LocalPath
 	// ipcMain.on('REMOTE_BROWSER_GET_BUILTIN', (event, args) => {
 	// 	// 在这里处理同步消息并返回响应
 	// 	const response = '这是主进程返回的响应'

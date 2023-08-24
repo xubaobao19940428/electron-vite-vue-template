@@ -10,7 +10,7 @@
             <template #extra>
                 <div>
                     <el-button type="primary" @click="startRecord()" v-if="!start">开庭录制</el-button>
-                    <el-button type="danger" @click="stopRecord" v-else>停止录制</el-button>
+                    <el-button type="danger" @click="stopRecord(1)" v-else>停止录制</el-button>
                 </div>
             </template>
         </el-page-header>
@@ -61,6 +61,7 @@ import { ipcRenderer } from 'electron';
 import ysFixWebmDuration from 'fix-webm-duration'
 const options = { mimeType: 'video/webm; codecs=h264' }
 export default {
+    inject: ["reload"],
     data () {
         return {
             distributionCaseId: '',
@@ -190,6 +191,13 @@ export default {
         async startRecord () {
             let _this = this;
             _this.startTime = _this.timestampToTime(new Date().getTime())
+            // _this.streamList = []
+            // let domLeng = document.getElementsByClassName('video-box-child')
+            // console.log(domLeng)
+            // for (var i = 0; i < domLeng.length; i++) {
+            //     _this.streamList.push(domLeng[i].captureStream())
+            // }
+            console.log(_this.mediaRecorderList)
             try {
                 _this.start = true;
                 _this.mediaRecorderList = _this.streamList.map((stream, index) => {
@@ -215,8 +223,12 @@ export default {
                             _this.saveVideoChunks(recordedChunks, newIndex, _this.caseViewList.distributionCaseId, duration);
                         }
                     };
+                    // 注意这里添加了状态检查
+                    // if (mediaRecorder.state === 'inactive') {
                     mediaRecorder.start(5000);
-                    startTime = Date.now()
+                    startTime = Date.now();
+                    // }
+                    console.log('mediaRecorder', mediaRecorder)
                     return mediaRecorder;
 
                 });
@@ -248,12 +260,12 @@ export default {
          * 停止录制 在 stopRecord 函数中等待所有录制源结束后再进行保存和转码操作
          */
         // 
-        async stopRecord () {
+        async stopRecord (type) {
             try {
                 const promises = this.mediaRecorderList.map(mediaRecorder => {
                     return new Promise(resolve => {
                         mediaRecorder.onstop = () => {
-                            console.log(mediaRecorder)
+                            console.log('1111', mediaRecorder)
                             resolve();
                         };
                         mediaRecorder.stop();
@@ -261,8 +273,16 @@ export default {
                 });
 
                 await Promise.all(promises);
+                console.log('All MediaRecorders stopped');
                 this.start = false;
                 this.recordEnd = true;
+                // this.mediaRecorderList = []
+                if(type){
+                    this.$message.success('录制成功')
+                }
+                
+                this.$router.go(-1)
+                // this.reload()
             } catch (error) {
                 console.error(error);
             }
@@ -279,6 +299,7 @@ export default {
         }
     },
     beforeUnmount () {
+        this.stopRecord()
         this.streamList.map(stream => {
             this.stopMediaStream(stream)
         })

@@ -364,6 +364,7 @@ app.on("window-all-closed", () => {
   app.quit();
 });
 app.whenReady().then(() => {
+  process.env.PATH += ":/usr/local/bin/";
   createWindow();
 });
 app.commandLine.appendSwitch("disable-features", "OutOfBlinkCors");
