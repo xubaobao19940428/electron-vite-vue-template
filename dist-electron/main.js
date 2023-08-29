@@ -1,6 +1,6 @@
 "use strict";
 const { ipcMain, dialog: dialog$1, app: app$1, BrowserWindow: BrowserWindow$1 } = require("electron");
-const fs = require("fs");
+const fs$1 = require("fs");
 const path$1 = require("path");
 require("archiver");
 const { spawn } = require("child_process");
@@ -15,11 +15,11 @@ const setIpc = {
         const tempWebMPath = path$1.join(outputDir, `${name}.webm`);
         const outputVideoPath = path$1.join(outputDir, `${name}.flv`);
         try {
-          await fs.promises.access(outputDir);
+          await fs$1.promises.access(outputDir);
         } catch (error) {
-          await fs.promises.mkdir(outputDir, { recursive: true });
+          await fs$1.promises.mkdir(outputDir, { recursive: true });
         }
-        await fs.promises.writeFile(tempWebMPath, Buffer.from(buffer));
+        await fs$1.promises.writeFile(tempWebMPath, Buffer.from(buffer));
         console.log("WebM 文件已保存，路径：", tempWebMPath);
         const ffmpegProcess = spawn("ffmpeg", ["-y", "-i", tempWebMPath, "-c:v", "libx264", "-c:a", "aac", "-ar", 44100, "-r", "30", "-strict", "experimental", outputVideoPath]);
         ffmpegProcess.on("error", (err) => {
@@ -33,7 +33,7 @@ const setIpc = {
             if (code === 0) {
               console.log("FLV格式视频保存成功");
               if (tempWebMPath) {
-                fs.promises.unlink(tempWebMPath).catch((err) => {
+                fs$1.promises.unlink(tempWebMPath).catch((err) => {
                   console.error("删除临时WebM文件时出错:", err);
                 });
               }
@@ -51,7 +51,7 @@ const setIpc = {
     ipcMain.handle("get-file-list", async (event) => {
       try {
         const videosDir = path$1.join(app$1.getPath("downloads"), "videos");
-        const files = await fs.promises.readdir(videosDir);
+        const files = await fs$1.promises.readdir(videosDir);
         const filesList = files.filter((file) => !file.startsWith(".DS_Store"));
         return filesList;
       } catch (error) {
@@ -62,7 +62,7 @@ const setIpc = {
     ipcMain.handle("get-video-files", async (event, folder) => {
       try {
         const folderPath = path$1.join(app$1.getPath("downloads"), "videos", folder);
-        const files = await fs.promises.readdir(folderPath);
+        const files = await fs$1.promises.readdir(folderPath);
         return files;
       } catch (error) {
         console.error("Error getting video files:", error);
@@ -104,9 +104,9 @@ const setIpc = {
       newCameraList.forEach(async (camera, index) => {
         const outputDir = path$1.join(app$1.getPath("downloads"), "videos", `${dirName}`);
         try {
-          await fs.promises.access(outputDir);
+          await fs$1.promises.access(outputDir);
         } catch (error) {
-          await fs.promises.mkdir(outputDir, { recursive: true });
+          await fs$1.promises.mkdir(outputDir, { recursive: true });
         }
         const outputPath = path$1.join(outputDir, `${dirName}_${index}.flv`);
         const ffmpegProcess = spawn("ffmpeg", [
@@ -313,6 +313,19 @@ function info() {
 }
 const { app, BrowserWindow, systemPreferences, Menu } = require("electron");
 const path = require("path");
+const fs = require("fs");
+const getBaseUrl = function() {
+  let configFilePath = "";
+  if (process.env.NODE_ENV === "development") {
+    configFilePath = process.cwd() + "/extraResources/configSetting.json";
+  } else {
+    configFilePath = path.join(process.resourcesPath, "extraResources/configSetting.json");
+  }
+  const configData = JSON.parse(fs.readFileSync(configFilePath, "utf-8"));
+  console.log("configData", configData);
+  return configData;
+};
+const LocalPath = getBaseUrl().path;
 process.env.DIST = path.join(__dirname, "../dist");
 process.env.PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, "../public");
 let mainWindow;
@@ -364,7 +377,7 @@ app.on("window-all-closed", () => {
   app.quit();
 });
 app.whenReady().then(() => {
-  process.env.PATH += ":/usr/local/bin/";
+  process.env.PATH += LocalPath;
   createWindow();
 });
 app.commandLine.appendSwitch("disable-features", "OutOfBlinkCors");

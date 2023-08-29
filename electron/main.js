@@ -8,6 +8,7 @@
  */
 const { app, BrowserWindow, systemPreferences, Menu } = require('electron')
 const path = require('path')
+const fs = require('fs')
 import setIpc from './ipcMain.js'
 import menuconfig from './menu'
 // The built directory structure
