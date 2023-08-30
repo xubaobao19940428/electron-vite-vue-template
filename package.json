@@ -7,14 +7,14 @@
 		"name": "johnqian",
 		"email": "915775317@qq.com"
 	},
-	"description": "electron-vite-vue示例项目",
+	"description": "离线庭审",
 	"scripts": {
 		"dev": "vite",
 		"rebuild": "electron-rebuild -f -w better-sqlite3",
 		"build": "vite build && electron-builder",
 		"build:mac": "vite build && electron-builder --mac",
 		"build:win32": "vite build && electron-builder --win  --ia32",
-		"build:deb": "vite build && electron-builder --linux",
+		"build:linux": "vite build && electron-builder --linux --arm64",
 		"preview": "vite preview"
 	},
 	"dependencies": {
@@ -106,7 +106,7 @@
 			]
 		},
 		"linux": {
-			"target": "deb",
+			"target": ["deb","AppImage"],
 			"icon": "build/icons/icon.png"
 		}
 	},

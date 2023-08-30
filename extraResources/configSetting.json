@@ -1,4 +1,4 @@
 {
-	"baseUrl": "http://192.168.0.71:8060/trailv2",
+	"baseUrl": "https://192.168.0.87:30061/trailv2",
     "path":":/usr/local/bin"
 }
