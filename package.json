@@ -9,12 +9,14 @@
 	},
 	"description": "离线庭审",
 	"scripts": {
-		"dev": "vite",
+		"dev": "npm run copy-macos && vite",
 		"rebuild": "electron-rebuild -f -w better-sqlite3",
 		"build": "vite build && electron-builder",
-		"build:mac": "vite build && electron-builder --mac",
+		"build:mac": "npm run copy-macos && vite build && electron-builder --mac",
 		"build:win32": "vite build && electron-builder --win  --ia32",
-		"build:linux": "vite build && electron-builder --linux --arm64",
+		"build:linux": "npm run copy-linux && vite build && electron-builder --linux --arm64",
+		"copy-linux": "cp -r node_modules/better-sqlite3-linux/* node_modules/better-sqlite3/",
+		"copy-macos": "cp -r node_modules/better-sqlite3-macos/* node_modules/better-sqlite3/",
 		"preview": "vite preview"
 	},
 	"dependencies": {
@@ -64,7 +66,11 @@
 		},
 		"files": [
 			"dist-electron",
-			"dist"
+			"dist",
+			{
+				"from": "./extraResources/better-sqlite3.node",
+				"to": "./"
+			}
 		],
 		"dmg": {
 			"contents": [
@@ -106,8 +112,15 @@
 			]
 		},
 		"linux": {
-			"target": ["deb","AppImage"],
-			"icon": "build/icons/icon.png"
+            "icon": "build/icons/256x256.png",
+			"target": [
+				{
+					"target": "deb",
+					"arch": [
+						"arm64"
+					]
+				}
+			]
 		}
 	},
 	"permissions": [

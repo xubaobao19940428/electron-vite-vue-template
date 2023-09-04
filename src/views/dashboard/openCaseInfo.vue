@@ -311,6 +311,7 @@ export default {
 .open-case-info {
     padding: 10px;
     box-sizing: border-box;
+    overflow: inherit;
 
     .el-card {
         display: flex;
@@ -340,12 +341,15 @@ export default {
     }
 
     #dashboard-video {
-        flex: 1;
+        // flex: 1;
         display: flex;
+        flex-wrap: wrap;
 
         :deep().video-box {
-            flex: 1;
-            height: 100%;
+            width: 50%;
+            aspect-ratio: 16/9;
+            margin-bottom: 10px;
+            background: #111111;
 
             video {
                 width: 100%;
