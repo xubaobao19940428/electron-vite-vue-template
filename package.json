@@ -59,7 +59,7 @@
 				"url": "http://127.0.0.1"
 			}
 		],
-		"productName": "庭审系统桌面端",
+		"productName": "线下庭审系统",
 		"appId": "org.Sky.electron-tz-trial",
 		"directories": {
 			"output": "output"
